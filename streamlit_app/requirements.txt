@@ -1,0 +1,9 @@
+streamlit>=1.30
+plotly
+folium
+streamlit-folium
+psycopg2-binary
+pandas
+pyarrow
+duckdb>=0.10
+python-dotenv

@@ -1,0 +1,143 @@
+{
+	"dashboard_title": "District & Commuter Ridership",
+	"description": "Daily ridership, satisfaction, and wait time by Davao administrative district. Powered by marts.mart_district_ridership.",
+	"metadata": {
+		"color_scheme": "supersetColors",
+		"expanded_slices": {},
+		"label_colors": {},
+		"refresh_frequency": 0,
+		"remote_id": 2,
+		"timed_refresh_immune_slices": []
+	},
+	"slices": [
+		{
+			"slice_name": "Daily Ridership by District",
+			"viz_type": "echarts_timeseries_line",
+			"datasource_type": "table",
+			"datasource_name": "mart_district_ridership",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "SUM",
+						"column": { "column_name": "total_passengers" },
+						"expressionType": "SIMPLE",
+						"label": "Total Passengers"
+					}
+				],
+				"groupby": ["district"],
+				"x_axis": "trip_date",
+				"time_grain_sqla": "P1D",
+				"row_limit": 10000,
+				"rich_tooltip": true,
+				"show_legend": true
+			}
+		},
+		{
+			"slice_name": "District Ridership Heatmap (Weekly)",
+			"viz_type": "heatmap",
+			"datasource_type": "table",
+			"datasource_name": "mart_district_ridership",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "SUM",
+						"column": { "column_name": "total_passengers" },
+						"expressionType": "SIMPLE",
+						"label": "Passengers"
+					}
+				],
+				"all_columns_x": "district",
+				"all_columns_y": "day_of_week",
+				"time_grain_sqla": "P1W",
+				"row_limit": 5000,
+				"normalize_across": "heatmap",
+				"left_margin": "auto",
+				"bottom_margin": "auto"
+			}
+		},
+		{
+			"slice_name": "Average Wait Time by District",
+			"viz_type": "bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_district_ridership",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "avg_wait_time_min" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Wait Time (min)"
+					}
+				],
+				"groupby": ["district"],
+				"row_limit": 20,
+				"color_scheme": "supersetColors"
+			}
+		},
+		{
+			"slice_name": "Average Satisfaction Score by District",
+			"viz_type": "bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_district_ridership",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "avg_satisfaction" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Satisfaction (1–5)"
+					}
+				],
+				"groupby": ["district"],
+				"row_limit": 20,
+				"color_scheme": "supersetColors"
+			}
+		},
+		{
+			"slice_name": "Shelter Coverage by District (%)",
+			"viz_type": "pie",
+			"datasource_type": "table",
+			"datasource_name": "mart_district_ridership",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "pct_with_shelter" },
+						"expressionType": "SIMPLE",
+						"label": "% Stops with Shelter"
+					}
+				],
+				"groupby": ["district"],
+				"row_limit": 20,
+				"donut": true,
+				"show_legend": true
+			}
+		},
+		{
+			"slice_name": "Transfer Rate by District",
+			"viz_type": "echarts_timeseries_bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_district_ridership",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "avg_transfers" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Transfers per Trip"
+					}
+				],
+				"groupby": ["district"],
+				"x_axis": "trip_date",
+				"time_grain_sqla": "P1M",
+				"row_limit": 5000
+			}
+		}
+	],
+	"_import_instructions": {
+		"note": "Import via Superset UI: Dashboards > Import. The datasource 'mart_district_ridership' must exist in the jeepney_dw database under schema 'marts' before importing. Run dbt first.",
+		"database": "jeepney_dw",
+		"schema": "marts",
+		"table": "mart_district_ridership"
+	}
+}

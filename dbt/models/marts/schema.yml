@@ -1,0 +1,219 @@
+version: 2
+
+# =============================================================================
+# GOLD LAYER — MART MODELS
+# All mart tables are materialised as full-refresh tables.
+# Populated by dbt on each Airflow dag_05_marts_refresh run.
+# mart_commuter_clusters and mart_ab_test_results require science/ scripts
+# to have run first — they will be empty shells until clustering.py and
+# ab_testing.py complete.
+# =============================================================================
+
+models:
+
+  # ---------------------------------------------------------------------------
+  # mart_route_summary
+  # ---------------------------------------------------------------------------
+  - name: mart_route_summary
+    description: >
+      Gold: daily route performance KPIs.
+      Grain: one row per route per day (~4,380 rows: 12 routes × 365 days).
+      Serves: Superset Dashboard 1 — Route Performance Overview.
+      Built from: int_route_performance.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - route_id
+            - trip_date
+    columns:
+      - name: route_id
+        description: "Route identifier. Part of composite PK."
+        tests:
+          - not_null
+      - name: trip_date
+        description: "Aggregation date. Part of composite PK."
+        tests:
+          - not_null
+      - name: route_name
+        description: "Human-readable route name for Superset labels."
+        tests:
+          - not_null
+      - name: district_covered
+        description: "Primary district served by this route."
+        tests:
+          - not_null
+      - name: total_trips
+        description: "Count of trip runs on this route on this date."
+        tests:
+          - not_null
+      - name: total_passengers
+        description: "Sum of all passengers boarded."
+        tests:
+          - not_null
+      - name: total_revenue_php
+        description: "Total fare revenue collected in PHP."
+        tests:
+          - not_null
+      - name: avg_load_factor
+        description: "Average load factor across all trips (0.0–1.5)."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1.5
+      - name: on_time_rate
+        description: "on_time_trips / total_trips. LTFRB target >= 0.80."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1.0
+
+  # ---------------------------------------------------------------------------
+  # mart_district_ridership
+  # ---------------------------------------------------------------------------
+  - name: mart_district_ridership
+    description: >
+      Gold: daily ridership and service quality by district.
+      Grain: one row per district per day (~4,015 rows: 11 districts × 365 days).
+      Serves: Superset Dashboard 2 — District & Commuter Ridership.
+      avg_wait_time_min and avg_satisfaction are NULL for districts
+      with no survey respondents.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - district
+            - trip_date
+    columns:
+      - name: district
+        description: "Administrative district. Part of composite PK."
+        tests:
+          - not_null
+      - name: trip_date
+        description: "Aggregation date. Part of composite PK."
+        tests:
+          - not_null
+      - name: total_boardings
+        description: "Total passengers boarding in this district on this date."
+        tests:
+          - not_null
+      - name: pct_with_shelter
+        description: "Proportion of stops with a waiting shed (0.0–1.0)."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1.0
+      - name: avg_satisfaction
+        description: "From passenger survey. NULL for districts with no respondents."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 5
+              where: "avg_satisfaction IS NOT NULL"
+
+  # ---------------------------------------------------------------------------
+  # mart_commuter_clusters
+  # ---------------------------------------------------------------------------
+  - name: mart_commuter_clusters
+    description: >
+      Gold: 5,000 passengers with K-Means cluster assignments.
+      Grain: one row per passenger.
+      IMPORTANT: Empty shell until science/clustering.py writes cluster_id
+      and cluster_label back to stg_passenger_survey and dbt mart run executes.
+      Cluster labels: 0=Student Commuters, 1=Market Workers, 2=CBD Workers,
+      3=Underserved Riders (A/B target), 4=Occasional Riders.
+    columns:
+      - name: passenger_id
+        description: "PK."
+        tests:
+          - not_null
+          - unique
+      - name: cluster_id
+        description: "K-Means cluster assignment (0–4)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1, 2, 3, 4]
+      - name: cluster_label
+        description: "Human-readable cluster name."
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - "Student Commuters"
+                - "Market Workers"
+                - "CBD Workers"
+                - "Underserved Riders"
+                - "Occasional Riders"
+      - name: satisfaction_score
+        description: "Self-reported rating 1–5."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 5
+      - name: is_ab_test_eligible
+        description: "TRUE only for cluster_id = 3 (Underserved Riders)."
+        tests:
+          - not_null
+
+  # ---------------------------------------------------------------------------
+  # mart_ab_test_results
+  # ---------------------------------------------------------------------------
+  - name: mart_ab_test_results
+    description: >
+      Gold: A/B test results for Cluster 3 (Underserved Riders).
+      Grain: one row per passenger per test week (~8,000 rows).
+      Statistical columns (p_value, is_significant, effect_size, CI) are NULL
+      until science/ab_testing.py runs and dbt mart refresh executes.
+      Serves: Superset Dashboard 3 + Streamlit A/B test results page.
+    columns:
+      - name: experiment_record_id
+        description: "PK."
+        tests:
+          - not_null
+          - unique
+      - name: passenger_id
+        description: "FK to mart_commuter_clusters."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('mart_commuter_clusters')
+              field: passenger_id
+      - name: group
+        description: "control | treatment."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["control", "treatment"]
+      - name: route_variant
+        description: "A_existing_route | B_express_direct."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["A_existing_route", "B_express_direct"]
+      - name: test_week
+        description: "1–8."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 8
+      - name: satisfaction_score
+        description: "Post-trip satisfaction 1–5."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 5
+      - name: p_value
+        description: >
+          Two-sample t-test p-value on satisfaction_score.
+          NULL until science/ab_testing.py runs.
+          Significant if < 0.05.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1.0
+              where: "p_value IS NOT NULL"

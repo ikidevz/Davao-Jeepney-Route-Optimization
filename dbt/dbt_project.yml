@@ -1,0 +1,57 @@
+name: jeepney_dw
+version: "1.0.0"
+config-version: 2
+
+# ──────────────────────────────────────────────────────────
+# Project identity
+# ──────────────────────────────────────────────────────────
+profile: jeepney_dw
+
+# ──────────────────────────────────────────────────────────
+# Directory layout
+# ──────────────────────────────────────────────────────────
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# ──────────────────────────────────────────────────────────
+# Global model defaults
+# ──────────────────────────────────────────────────────────
+models:
+  jeepney_dw:
+    # ── Silver / Staging ──────────────────────────────────
+      +materialized: view
+      +schema: staging
+      +tags: ["silver", "staging"]
+
+    # ── Intermediate ─────────────────────────────────────
+    intermediate:
+      +materialized: table
+      +tags: ["intermediate"]
+
+    # ── Gold / Marts ─────────────────────────────────────
+    marts:
+      +materialized: table
+      +schema: marts
+      +tags: ["gold", "marts"]
+
+# ──────────────────────────────────────────────────────────
+# Seed defaults (reference / lookup CSVs)
+# ──────────────────────────────────────────────────────────
+seeds:
+  jeepney_dw:
+    +schema: staging
+
+# ──────────────────────────────────────────────────────────
+# Snapshot defaults
+# ──────────────────────────────────────────────────────────
+snapshots:
+  jeepney_dw:
+    +target_schema: staging
+    +strategy: timestamp
+    +updated_at: updated_at

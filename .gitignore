@@ -1,0 +1,16 @@
+bin/
+logs/
+__pycache__/
+.env
+scripts/
+reports/
+
+dags/src/
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+dbt/package-lock.yml
+dbt/data/
+
+.vscode/

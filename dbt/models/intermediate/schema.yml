@@ -1,0 +1,68 @@
+version: 2
+
+# =============================================================================
+# INTERMEDIATE LAYER
+# Materialised as ephemeral (CTEs inlined into dependent marts).
+# These models contain business logic that would otherwise be repeated
+# across multiple mart models. They are never written to PostgreSQL.
+#
+# int_daily_ridership     → mart_route_summary, mart_district_ridership
+# int_route_performance   → mart_route_summary
+# int_passenger_features  → mart_commuter_clusters, read by science/clustering.py
+# =============================================================================
+
+models:
+
+  - name: int_daily_ridership
+    description: >
+      Intermediate: daily ridership aggregates per route.
+      Joins stg_trips with stg_routes for enriched route context.
+      Grain: one row per route per day.
+      Used by: mart_route_summary, mart_district_ridership.
+    columns:
+      - name: route_id
+        description: "Route identifier."
+        tests:
+          - not_null
+      - name: trip_date
+        description: "Aggregation date."
+        tests:
+          - not_null
+      - name: total_trips
+        description: "Count of trip runs on this route on this date."
+        tests:
+          - not_null
+      - name: total_passengers
+        description: "Sum of all passengers boarded across trips."
+        tests:
+          - not_null
+
+  - name: int_route_performance
+    description: >
+      Intermediate: enriched route performance per day, joining trips,
+      routes, vehicles, and operators. Computes on-time rate, load factor,
+      revenue per km, and peak/off-peak splits.
+      Grain: one row per route per day.
+      Used by: mart_route_summary.
+    columns:
+      - name: route_id
+        description: "Route identifier."
+        tests:
+          - not_null
+      - name: trip_date
+        description: "Aggregation date."
+        tests:
+          - not_null
+
+  - name: int_passenger_features
+    description: >
+      Intermediate: feature matrix for commuter clustering.
+      Joins stg_passenger_survey with stg_routes for route-level context.
+      Includes all 6 clustering features used by science/clustering.py:
+      trips_per_week, avg_fare_paid_php, transfers_required, wait_time_min,
+      satisfaction_score, income_bracket_encoded.
+      Grain: one row per passenger.
+      Used by: mart_commuter_clusters.
+      Materialised as TABLE (not ephemeral) and written to the staging schema
+      so science/clustering.py can SELECT it directly from PostgreSQL after
+      running: dbt run --select staging intermediate

@@ -1,0 +1,439 @@
+version: 2
+
+# =============================================================================
+# STAGING LAYER — Silver
+# Source: PostgreSQL staging schema (loaded from MinIO Parquet by ingest_to_postgres.py)
+# Each model is a simple SELECT view over the already-typed staging table.
+# All type casting and null handling happened during ingestion.
+# Tests enforce PK uniqueness, FK integrity, and business-rule ranges.
+# =============================================================================
+
+sources:
+  - name: staging
+    database: jeepney_dw
+    schema: staging
+    description: >
+      Silver layer. Raw Parquet files from MinIO loaded into PostgreSQL by
+      ingest_to_postgres.py. Tables are cleaned and typed but contain no
+      business logic. Bronze lives in MinIO s3://raw/jeepney/*.
+
+    tables:
+
+      - name: stg_routes
+        description: "12 Davao jeepney routes. Static dimension. One row per route."
+
+      - name: stg_operators
+        description: "Jeepney franchise holders and cooperatives. Static dimension."
+
+      - name: stg_stops
+        description: "~180 stops anchored on real Davao City landmarks."
+
+      - name: stg_vehicles
+        description: "120 jeepney units (traditional + modernised PUV). Static dimension."
+
+      - name: stg_trips
+        description: "~500K trip runs over 1 year. Highest-volume fact table."
+
+      - name: stg_passenger_survey
+        description: "5,000 commuter survey records. cluster_id NULL until clustering.py runs."
+
+      - name: stg_ab_experiment
+        description: "A/B experiment records for Cluster 3 (Underserved Riders) only. ~8,000 rows."
+
+
+models:
+
+  # ---------------------------------------------------------------------------
+  # stg_routes
+  # ---------------------------------------------------------------------------
+  - name: stg_routes
+    description: >
+      Silver: 12 Davao City jeepney routes. Grain: one row per route.
+      Static dimension — refreshed only when routes change.
+    columns:
+      - name: route_id
+        description: "PK. Format: R01–R12. LTFRB route code."
+        tests:
+          - not_null
+          - unique
+      - name: route_name
+        description: "Human-readable name, e.g. Bankerohan–Toril."
+        tests:
+          - not_null
+      - name: origin
+        description: "Starting terminal (real Davao terminal name)."
+        tests:
+          - not_null
+      - name: destination
+        description: "Ending terminal (real Davao landmark)."
+        tests:
+          - not_null
+      - name: district_covered
+        description: "Primary administrative district served by this route."
+        tests:
+          - not_null
+      - name: route_length_km
+        description: "Estimated length in km. Must be > 0."
+        tests:
+          - not_null
+      - name: num_stops
+        description: "Total stops along the route. Must be > 0."
+        tests:
+          - not_null
+      - name: base_fare_php
+        description: "Base fare (₱13 minimum per LTFRB 2026 ruling)."
+        tests:
+          - not_null
+      - name: peak_frequency_min
+        description: "Headway in minutes during AM/PM peak. Must be > 0."
+        tests:
+          - not_null
+      - name: off_peak_frequency_min
+        description: "Headway during midday/off-peak. Always >= peak_frequency_min."
+        tests:
+          - not_null
+      - name: is_active
+        description: "FALSE if route is suspended under PUV Modernisation Program."
+        tests:
+          - not_null
+
+  # ---------------------------------------------------------------------------
+  # stg_operators
+  # ---------------------------------------------------------------------------
+  - name: stg_operators
+    description: >
+      Silver: jeepney franchise holders and cooperatives.
+      Grain: one row per operator. Static dimension.
+    columns:
+      - name: operator_id
+        description: "PK. Format: OPR-001."
+        tests:
+          - not_null
+          - unique
+      - name: operator_name
+        description: "Operator or cooperative name."
+        tests:
+          - not_null
+      - name: franchise_type
+        description: "individual | cooperative | corporation."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["individual", "cooperative", "corporation"]
+      - name: num_units_owned
+        description: "Number of jeepney units under this operator. Must be >= 1."
+        tests:
+          - not_null
+      - name: base_district
+        description: "Primary district of operation."
+        tests:
+          - not_null
+      - name: is_compliant_puv
+        description: "TRUE if compliant with LTFRB PUV Modernisation Program."
+        tests:
+          - not_null
+
+  # ---------------------------------------------------------------------------
+  # stg_stops
+  # ---------------------------------------------------------------------------
+  - name: stg_stops
+    description: >
+      Silver: ~180 stops on real Davao City landmarks.
+      Grain: one row per stop.
+    columns:
+      - name: stop_id
+        description: "PK. Format: S001–S180."
+        tests:
+          - not_null
+          - unique
+      - name: stop_name
+        description: "Landmark or intersection name."
+        tests:
+          - not_null
+      - name: barangay
+        description: "Barangay where stop is located."
+        tests:
+          - not_null
+      - name: district
+        description: "Administrative district."
+        tests:
+          - not_null
+      - name: latitude
+        description: "GPS latitude. Valid range: 6.8–7.5 (Davao bounds)."
+        tests:
+          - not_null
+      - name: longitude
+        description: "GPS longitude. Valid range: 125.0–126.0 (Davao bounds)."
+        tests:
+          - not_null
+      - name: stop_type
+        description: "Category of the stop landmark."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["terminal", "market", "school", "hospital", "mall", "residential"]
+      - name: has_shelter
+        description: "TRUE if a waiting shed exists at this stop."
+        tests:
+          - not_null
+      - name: route_id
+        description: "FK to stg_routes."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_routes')
+              field: route_id
+
+  # ---------------------------------------------------------------------------
+  # stg_vehicles
+  # ---------------------------------------------------------------------------
+  - name: stg_vehicles
+    description: >
+      Silver: 120 jeepney units (traditional + modernised PUV).
+      Grain: one row per vehicle unit. Static dimension.
+    columns:
+      - name: vehicle_id
+        description: "PK. Format: VHC-001."
+        tests:
+          - not_null
+          - unique
+      - name: plate_number
+        description: "Synthetic PH plate format, e.g. DBX-1234."
+        tests:
+          - not_null
+          - unique
+      - name: vehicle_type
+        description: "traditional | modernized_PUV."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["traditional", "modernized_PUV"]
+      - name: capacity
+        description: "Max passengers. 16 for traditional, 23 for modern."
+        tests:
+          - not_null
+      - name: fuel_type
+        description: "diesel | euro4_diesel | electric."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["diesel", "euro4_diesel", "electric"]
+      - name: year_manufactured
+        description: "Year of manufacture (2000–2025)."
+        tests:
+          - not_null
+      - name: route_assigned
+        description: "FK to stg_routes."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_routes')
+              field: route_id
+      - name: operator_id
+        description: "FK to stg_operators."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_operators')
+              field: operator_id
+      - name: is_active
+        description: "FALSE if unit is retired from service."
+        tests:
+          - not_null
+
+  # ---------------------------------------------------------------------------
+  # stg_trips
+  # ---------------------------------------------------------------------------
+  - name: stg_trips
+    description: >
+      Silver: ~500K trip runs over 1 year (2024-01-01 to 2024-12-31).
+      Grain: one trip per vehicle per direction per day.
+      Highest-volume table in the lakehouse.
+    columns:
+      - name: trip_id
+        description: "PK. Format: TRP-00001."
+        tests:
+          - not_null
+          - unique
+      - name: route_id
+        description: "FK to stg_routes."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_routes')
+              field: route_id
+      - name: vehicle_id
+        description: "FK to stg_vehicles."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_vehicles')
+              field: vehicle_id
+      - name: trip_date
+        description: "Date the trip ran."
+        tests:
+          - not_null
+      - name: time_period
+        description: "AM_peak | midday | PM_peak | off_peak."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["AM_peak", "midday", "PM_peak", "off_peak"]
+      - name: day_of_week
+        description: "Day of the week: Monday–Sunday."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Monday", "Tuesday", "Wednesday", "Thursday",
+                       "Friday", "Saturday", "Sunday"]
+      - name: passengers_boarded
+        description: "Total passengers for this trip. Must be >= 0."
+        tests:
+          - not_null
+      - name: revenue_php
+        description: "Total fare collected in PHP. Must be >= 0."
+        tests:
+          - not_null
+      - name: load_factor
+        description: "passengers_boarded / vehicle capacity. 0.0–1.5 allowed."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1.5
+      - name: is_on_time
+        description: "TRUE when delay_min <= 5."
+        tests:
+          - not_null
+      - name: is_rainy_day
+        description: "TRUE ~40% of days (Davao rainfall pattern)."
+        tests:
+          - not_null
+
+  # ---------------------------------------------------------------------------
+  # stg_passenger_survey
+  # ---------------------------------------------------------------------------
+  - name: stg_passenger_survey
+    description: >
+      Silver: 5,000 commuter survey records.
+      Grain: one row per respondent.
+      cluster_id and cluster_label are NULL at load time;
+      science/clustering.py populates them after K-Means runs.
+    columns:
+      - name: passenger_id
+        description: "PK. Format: PAX-0001."
+        tests:
+          - not_null
+          - unique
+      - name: origin_district
+        description: "Derived from origin_barangay."
+        tests:
+          - not_null
+      - name: destination_type
+        description: "work | school | market | hospital | mall."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["work", "school", "market", "hospital", "mall"]
+      - name: trip_purpose
+        description: "daily_commute | occasional | weekend_only."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["daily_commute", "occasional", "weekend_only"]
+      - name: primary_route_used
+        description: "FK to stg_routes — most frequently used route."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_routes')
+              field: route_id
+      - name: satisfaction_score
+        description: "1 (very poor) to 5 (excellent)."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 5
+      - name: income_bracket
+        description: "low | middle | high."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["low", "middle", "high"]
+      - name: transfers_required
+        description: "Jeepney transfers per trip (0–3)."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 3
+      - name: cluster_id
+        description: >
+          NULL at load time. Values 0–4 written by science/clustering.py.
+          0=Student Commuters, 1=Market Workers, 2=CBD Workers,
+          3=Underserved Riders, 4=Occasional Riders.
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 4
+              where: "cluster_id IS NOT NULL"
+
+  # ---------------------------------------------------------------------------
+  # stg_ab_experiment
+  # ---------------------------------------------------------------------------
+  - name: stg_ab_experiment
+    description: >
+      Silver: A/B experiment records — Cluster 3 (Underserved Riders) only.
+      Grain: one row per passenger per test week. ~8,000 rows.
+      Statistical outputs (p_value, CI, effect_size) are NOT here —
+      they live in marts.mart_ab_test_results after ab_testing.py runs.
+    columns:
+      - name: experiment_record_id
+        description: "PK. Unique per passenger + week combination."
+        tests:
+          - not_null
+          - unique
+      - name: passenger_id
+        description: "FK to stg_passenger_survey."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_passenger_survey')
+              field: passenger_id
+      - name: cluster_id
+        description: "Always 3 (Underserved Riders)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [3]
+      - name: group
+        description: "control | treatment. Quoted — GROUP is a reserved word."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["control", "treatment"]
+      - name: route_variant
+        description: "A_existing_route (control) | B_express_direct (treatment)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["A_existing_route", "B_express_direct"]
+      - name: test_week
+        description: "1–8 (eight-week simulated trial)."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 8
+      - name: satisfaction_score
+        description: "Post-trip satisfaction 1–5."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 5
+      - name: would_use_again
+        description: "Boolean retention indicator."
+        tests:
+          - not_null

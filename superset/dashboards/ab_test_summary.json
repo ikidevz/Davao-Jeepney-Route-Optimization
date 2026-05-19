@@ -1,0 +1,146 @@
+{
+	"dashboard_title": "A/B Test Summary — Express Route Experiment",
+	"description": "Statistical results of the Matina → SM Lanang express route experiment on Cluster 3 (Underserved Riders). Powered by marts.mart_ab_test_results.",
+	"metadata": {
+		"color_scheme": "supersetColors",
+		"expanded_slices": {},
+		"label_colors": {
+			"control": "#888780",
+			"treatment": "#1D9E75"
+		},
+		"refresh_frequency": 0,
+		"remote_id": 3,
+		"timed_refresh_immune_slices": []
+	},
+	"slices": [
+		{
+			"slice_name": "Avg Satisfaction Score — Control vs Treatment",
+			"viz_type": "bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_ab_test_results",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "satisfaction_score" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Satisfaction (1–5)"
+					}
+				],
+				"groupby": ["group"],
+				"row_limit": 100,
+				"color_scheme": "supersetColors",
+				"show_legend": true
+			}
+		},
+		{
+			"slice_name": "Avg Travel Time (min) — Control vs Treatment",
+			"viz_type": "bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_ab_test_results",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "simulated_travel_time_min" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Travel Time (min)"
+					}
+				],
+				"groupby": ["group"],
+				"row_limit": 100,
+				"color_scheme": "supersetColors"
+			}
+		},
+		{
+			"slice_name": "Would Use Again Rate — Control vs Treatment",
+			"viz_type": "pie",
+			"datasource_type": "table",
+			"datasource_name": "mart_ab_test_results",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "COUNT",
+						"column": { "column_name": "experiment_record_id" },
+						"expressionType": "SIMPLE",
+						"label": "Passengers"
+					}
+				],
+				"groupby": ["group", "would_use_again"],
+				"row_limit": 50,
+				"donut": false,
+				"show_legend": true
+			}
+		},
+		{
+			"slice_name": "Satisfaction Score over 8 Weeks — by Group",
+			"viz_type": "echarts_timeseries_line",
+			"datasource_type": "table",
+			"datasource_name": "mart_ab_test_results",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "satisfaction_score" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Satisfaction"
+					}
+				],
+				"groupby": ["group"],
+				"x_axis": "test_week",
+				"time_grain_sqla": "P1W",
+				"row_limit": 5000,
+				"rich_tooltip": true,
+				"show_legend": true
+			}
+		},
+		{
+			"slice_name": "Statistical Significance Summary",
+			"viz_type": "table",
+			"datasource_type": "table",
+			"datasource_name": "mart_ab_test_results",
+			"params": {
+				"all_columns": [
+					"experiment_id",
+					"group",
+					"p_value",
+					"is_significant",
+					"effect_size",
+					"confidence_interval_low",
+					"confidence_interval_high"
+				],
+				"metrics": [],
+				"groupby": [],
+				"row_limit": 20,
+				"include_time": false,
+				"order_desc": true
+			}
+		},
+		{
+			"slice_name": "Transfers Needed — Control vs Treatment",
+			"viz_type": "bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_ab_test_results",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "transfers_needed" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Transfers"
+					}
+				],
+				"groupby": ["group"],
+				"row_limit": 100,
+				"color_scheme": "supersetColors"
+			}
+		}
+	],
+	"_import_instructions": {
+		"note": "Import via Superset UI: Dashboards > Import. Run science/ab_testing.py AND dbt marts refresh before importing — p_value and effect_size columns are NULL until the science pipeline completes.",
+		"database": "jeepney_dw",
+		"schema": "marts",
+		"table": "mart_ab_test_results",
+		"prerequisite_order": ["dag_04_science", "dag_05_marts_refresh"]
+	}
+}

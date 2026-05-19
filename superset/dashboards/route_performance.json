@@ -1,0 +1,150 @@
+{
+	"dashboard_title": "Route Performance Overview",
+	"description": "Daily KPIs for all 12 Davao jeepney routes — ridership, revenue, load factor, and on-time performance. Powered by marts.mart_route_summary.",
+	"position": {
+		"DASHBOARD_VERSION_KEY": "v2"
+	},
+	"metadata": {
+		"color_scheme": "supersetColors",
+		"expanded_slices": {},
+		"label_colors": {},
+		"refresh_frequency": 0,
+		"remote_id": 1,
+		"timed_refresh_immune_slices": []
+	},
+	"slices": [
+		{
+			"slice_name": "Daily Ridership by Route",
+			"viz_type": "echarts_timeseries_line",
+			"datasource_type": "table",
+			"datasource_name": "mart_route_summary",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "SUM",
+						"column": { "column_name": "total_passengers" },
+						"expressionType": "SIMPLE",
+						"label": "Total Passengers"
+					}
+				],
+				"groupby": ["route_name"],
+				"x_axis": "trip_date",
+				"time_grain_sqla": "P1D",
+				"row_limit": 10000,
+				"rich_tooltip": true,
+				"show_legend": true
+			}
+		},
+		{
+			"slice_name": "Average Load Factor by Route",
+			"viz_type": "bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_route_summary",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "avg_load_factor" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Load Factor"
+					}
+				],
+				"groupby": ["route_name"],
+				"color_scheme": "supersetColors",
+				"row_limit": 20,
+				"show_legend": false
+			}
+		},
+		{
+			"slice_name": "Revenue per Kilometre by Route",
+			"viz_type": "bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_route_summary",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "revenue_per_km" },
+						"expressionType": "SIMPLE",
+						"label": "Revenue / km (PHP)"
+					}
+				],
+				"groupby": ["route_name"],
+				"color_scheme": "supersetColors",
+				"row_limit": 20,
+				"show_legend": false
+			}
+		},
+		{
+			"slice_name": "On-Time Performance Rate",
+			"viz_type": "echarts_timeseries_bar",
+			"datasource_type": "table",
+			"datasource_name": "mart_route_summary",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "on_time_rate" },
+						"expressionType": "SIMPLE",
+						"label": "On-Time Rate (%)"
+					}
+				],
+				"groupby": ["route_name"],
+				"x_axis": "trip_date",
+				"time_grain_sqla": "P1W",
+				"row_limit": 5000,
+				"rich_tooltip": true
+			}
+		},
+		{
+			"slice_name": "Peak vs Off-Peak Ridership Ratio",
+			"viz_type": "echarts_timeseries_line",
+			"datasource_type": "table",
+			"datasource_name": "mart_route_summary",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "peak_passengers" },
+						"expressionType": "SIMPLE",
+						"label": "Peak Passengers"
+					},
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "off_peak_passengers" },
+						"expressionType": "SIMPLE",
+						"label": "Off-Peak Passengers"
+					}
+				],
+				"groupby": [],
+				"x_axis": "trip_date",
+				"time_grain_sqla": "P1D",
+				"row_limit": 5000
+			}
+		},
+		{
+			"slice_name": "Rainy Day Impact on Avg Delay",
+			"viz_type": "box_plot",
+			"datasource_type": "table",
+			"datasource_name": "mart_route_summary",
+			"params": {
+				"metrics": [
+					{
+						"aggregate": "AVG",
+						"column": { "column_name": "avg_delay_min" },
+						"expressionType": "SIMPLE",
+						"label": "Avg Delay (min)"
+					}
+				],
+				"groupby": ["is_rainy_day"],
+				"row_limit": 1000
+			}
+		}
+	],
+	"_import_instructions": {
+		"note": "Import via Superset UI: Dashboards > Import. The datasource 'mart_route_summary' must exist in the jeepney_dw database under schema 'marts' before importing. Run dbt first.",
+		"database": "jeepney_dw",
+		"schema": "marts",
+		"table": "mart_route_summary"
+	}
+}
