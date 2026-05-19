@@ -1,6 +1,6 @@
 # Davao Jeepney Route Optimization
 
-A full data engineering and data science project analyzing commuter patterns across Davao City's 12 jeepney routes — built on a lightweight data lakehouse with Docker and Python.
+A full data engineering and data science project analyzing commuter patterns across Davao City's jeepney routes — built on a lightweight data lakehouse with Docker and Python.
 
 ---
 
