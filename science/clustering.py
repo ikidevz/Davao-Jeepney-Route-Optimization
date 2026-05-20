@@ -35,7 +35,7 @@ DB_CONFIG = {
 }
 
 PARQUET_DIR = os.path.join(os.path.dirname(__file__), "parquet")
-MODEL_DIR   = os.path.join(os.path.dirname(__file__), "models")
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
 os.makedirs(PARQUET_DIR, exist_ok=True)
 os.makedirs(MODEL_DIR,   exist_ok=True)
 
@@ -89,7 +89,8 @@ def load_features() -> tuple[pd.DataFrame, np.ndarray]:
 # Elbow + Silhouette diagnostics
 # ---------------------------------------------------------------------------
 def run_diagnostics(X: np.ndarray) -> tuple[pd.DataFrame, pd.DataFrame]:
-    log.info("Running Elbow + Silhouette diagnostics for K=%d..%d …", K_RANGE.start, K_RANGE.stop - 1)
+    log.info("Running Elbow + Silhouette diagnostics for K=%d..%d …",
+             K_RANGE.start, K_RANGE.stop - 1)
     elbow_rows = []
     silhouette_rows = []
 
@@ -97,17 +98,20 @@ def run_diagnostics(X: np.ndarray) -> tuple[pd.DataFrame, pd.DataFrame]:
         km = KMeans(n_clusters=k, random_state=RANDOM_STATE, n_init=10)
         labels = km.fit_predict(X)
         wss = float(km.inertia_)
-        sil = float(silhouette_score(X, labels, sample_size=min(2000, len(X)), random_state=RANDOM_STATE))
+        sil = float(silhouette_score(X, labels, sample_size=min(
+            2000, len(X)), random_state=RANDOM_STATE))
         elbow_rows.append({"k": k, "wss": wss})
         silhouette_rows.append({"k": k, "silhouette_score": sil})
         log.info("  K=%d  WSS=%.2f  Silhouette=%.4f", k, wss, sil)
 
-    elbow_df      = pd.DataFrame(elbow_rows)
+    elbow_df = pd.DataFrame(elbow_rows)
     silhouette_df = pd.DataFrame(silhouette_rows)
 
     # Auto-select K: highest silhouette score
-    best_k = int(silhouette_df.loc[silhouette_df["silhouette_score"].idxmax(), "k"])
-    log.info("Auto-selected K (max silhouette) = %d. Blueprint target = %d.", best_k, OPTIMAL_K)
+    best_k = int(
+        silhouette_df.loc[silhouette_df["silhouette_score"].idxmax(), "k"])
+    log.info(
+        "Auto-selected K (max silhouette) = %d. Blueprint target = %d.", best_k, OPTIMAL_K)
 
     return elbow_df, silhouette_df
 
@@ -149,31 +153,36 @@ def remap_clusters(df: pd.DataFrame, raw_labels: np.ndarray) -> np.ndarray:
     prototype_scores = []
     for raw_k, centroid in zip(unique_raw, centroids):
         scores = {
-            0: centroid[idx["trips_per_week"]] - centroid[idx["avg_fare_paid_php"]],       # high freq, low fare
-            1: centroid[idx["transfers_required"]] + centroid[idx["wait_time_min"]],        # transfers + wait
-            2: centroid[idx["avg_fare_paid_php"]] + centroid[idx["satisfaction_score"]],    # high fare, high sat
-            3: -centroid[idx["satisfaction_score"]] + centroid[idx["transfers_required"]],  # low sat, high transfers
-            4: -centroid[idx["trips_per_week"]] - centroid[idx["transfers_required"]],      # low freq, few transfers
+            # high freq, low fare
+            0: centroid[idx["trips_per_week"]] - centroid[idx["avg_fare_paid_php"]],
+            # transfers + wait
+            1: centroid[idx["transfers_required"]] + centroid[idx["wait_time_min"]],
+            # high fare, high sat
+            2: centroid[idx["avg_fare_paid_php"]] + centroid[idx["satisfaction_score"]],
+            # low sat, high transfers
+            3: -centroid[idx["satisfaction_score"]] + centroid[idx["transfers_required"]],
+            # low freq, few transfers
+            4: -centroid[idx["trips_per_week"]] - centroid[idx["transfers_required"]],
         }
         prototype_scores.append((raw_k, scores))
 
     # Greedy assignment: assign raw cluster to the semantic cluster it scores highest on
     assignment = {}
     taken = set()
-    for semantic_k in [3, 2, 0, 4, 1]:  # priority order (most distinctive first)
+    scores_lookup = dict(prototype_scores)
+
+    for semantic_k in [3, 2, 0, 4, 1]:
         best_raw = max(
             (raw_k for raw_k, _ in prototype_scores if raw_k not in taken),
-            key=lambda rk, sk=semantic_k: dict(prototype_scores)[rk][sk],
+            key=lambda rk, sk=semantic_k: scores_lookup[rk][sk],
             default=None,
         )
-        if best_raw is not None:
-            assignment[best_raw] = semantic_k
-            taken.add(best_raw)
 
     # Any remaining unmapped clusters
     for raw_k, _ in prototype_scores:
         if raw_k not in assignment:
-            remaining = [s for s in range(OPTIMAL_K) if s not in assignment.values()]
+            remaining = [s for s in range(
+                OPTIMAL_K) if s not in assignment.values()]
             assignment[raw_k] = remaining[0] if remaining else raw_k
 
     log.info("Cluster remapping: raw → semantic %s", assignment)
@@ -185,7 +194,8 @@ def remap_clusters(df: pd.DataFrame, raw_labels: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 def fit_kmeans(X: np.ndarray) -> tuple[KMeans, np.ndarray]:
     log.info("Fitting final K-Means with K=%d …", OPTIMAL_K)
-    km = KMeans(n_clusters=OPTIMAL_K, random_state=RANDOM_STATE, n_init=20, max_iter=500)
+    km = KMeans(n_clusters=OPTIMAL_K, random_state=RANDOM_STATE,
+                n_init=20, max_iter=500)
     raw_labels = km.fit_predict(X)
     inertia = km.inertia_
     log.info("Final model inertia: %.2f", inertia)
@@ -270,7 +280,7 @@ def main():
     save_diagnostic_parquets(elbow_df, silhouette_df)
 
     km, raw_labels = fit_kmeans(X)
-    final_labels   = remap_clusters(df, raw_labels)
+    final_labels = remap_clusters(df, raw_labels)
 
     run_dbscan_validation(X)
 

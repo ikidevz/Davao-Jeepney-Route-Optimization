@@ -5,8 +5,6 @@ Generates ~1.1M trip records (1 year: 2024-01-01 to 2024-12-31) across
 40 routes and 285 vehicles, then POSTs in 10,000-record chunks to
 POST /ingest/trips.
 
-Expanded from original 12 routes / 120 vehicles / ~500K trips.
-
 FK dependencies: routes (R01–R40) and vehicles (VHC-001..VHC-285) must exist.
 
 Business rules:
@@ -16,6 +14,7 @@ Business rules:
   - Rainy days: +20-40% delay, -10-15% passengers
   - Load factor = passengers / capacity (0–1.5 with slight overcrowding allowed)
   - Remote routes (R27–R29, R32): reduced trips per period, longer schedules
+
 """
 
 import random as _rnd
@@ -118,8 +117,6 @@ ROUTE_META = {
     "R40": {"length_km": 18.30, "scheduled_min":  37, "vehicles": list(range(282, 286))},
 }
 
-# ── Trips per vehicle per day by period — reduced for remote routes ────────────
-# Standard (urban/inner-city routes)
 TRIPS_PER_PERIOD_STANDARD = {
     "AM_peak":  3,
     "midday":   5,
@@ -127,7 +124,6 @@ TRIPS_PER_PERIOD_STANDARD = {
     "off_peak": 2,
 }
 
-# Remote routes (long scheduled time — fewer round trips possible per day)
 TRIPS_PER_PERIOD_REMOTE = {
     "AM_peak":  1,
     "midday":   2,
@@ -135,7 +131,6 @@ TRIPS_PER_PERIOD_REMOTE = {
     "off_peak": 0,
 }
 
-# Semi-remote (mid-length outer routes)
 TRIPS_PER_PERIOD_SEMI = {
     "AM_peak":  2,
     "midday":   3,
@@ -143,9 +138,7 @@ TRIPS_PER_PERIOD_SEMI = {
     "off_peak": 1,
 }
 
-# Remote routes (scheduled >= 45 min one-way)
 REMOTE_ROUTES = {"R27", "R28", "R29", "R32", "R39"}
-# Semi-remote routes (scheduled >= 38 min one-way)
 SEMI_ROUTES = {"R05", "R18", "R19", "R20", "R22", "R24", "R26", "R40"}
 
 PERIOD_HOURS = {
@@ -197,6 +190,30 @@ def trips_per_period(route_id: str) -> dict:
     if route_id in SEMI_ROUTES:
         return TRIPS_PER_PERIOD_SEMI
     return TRIPS_PER_PERIOD_STANDARD
+
+
+_ROUTE_RAIN_EXTRA_PROB = {r: 0.05 for r in REMOTE_ROUTES}
+
+
+def sample_route_rain(city_rainy_day: bool, route_id: str) -> bool:
+    """
+    Decide whether a specific route is experiencing rain.
+
+    - On a dry city day (city_rainy_day=False):  no route is rainy.
+      This preserves the physical reality that rain is a city-level weather
+      event; we do not invent rain on routes when the city is dry.
+    - On a rainy city day (city_rainy_day=True):  each route independently
+      draws from its own exposure probability.  Urban routes use the base
+      40% rate; remote/fringe routes use 45%.  This means ~40–45% of all
+      trips on a rainy day are actually rained-on, matching the documented
+      business rule, while eliminating the unrealistic 100% correlation
+      across all 40 routes.
+    """
+    if not city_rainy_day:
+        return False
+    extra = _ROUTE_RAIN_EXTRA_PROB.get(route_id, 0.0)
+    # Base probability 0.40 already gates entry here; extra shifts remote routes
+    return random.random() < (0.40 + extra)
 
 
 def generate_trip(trip_num: int, route_id: str, vehicle_id: str,
@@ -279,9 +296,11 @@ def trip_generator():
     current = start_date
 
     while current <= end_date:
-        is_rainy = random.random() < 0.40
+        city_rainy_day = random.random() < 0.40
 
         for route_id, meta in ROUTE_META.items():
+            is_rainy = sample_route_rain(city_rainy_day, route_id)
+
             max_fare = fare_for_route(meta["length_km"])
             vehicles = meta["vehicles"]
             tpp = trips_per_period(route_id)

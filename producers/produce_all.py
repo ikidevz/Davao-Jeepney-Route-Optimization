@@ -1,4 +1,18 @@
+"""
+produce_all.py
+--------------
+Master runner for all synthetic data producers.
 
+Runs producers in FK-safe order:
+  routes → operators → stops → vehicles → trips → passengers → ab_experiment
+
+Usage:
+  python producers/produce_all.py                    # run all
+  python producers/produce_all.py --skip trips       # skip slow step
+  python producers/produce_all.py --only routes stops
+  python producers/produce_all.py --dry-run          # print plan only
+  python producers/produce_all.py --no-health-check  # skip /health ping
+"""
 
 import argparse
 import importlib.util
@@ -6,12 +20,9 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Callable
 
 
-# ── Resolve producer directory regardless of CWD ─────────────────────────────
 PRODUCERS_DIR = Path(__file__).parent.resolve()
-
 
 _fastapi_url = os.getenv("FASTAPI_URL", "http://fastapi:8000")
 os.environ.setdefault("FASTAPI_URL", _fastapi_url)
@@ -59,7 +70,7 @@ PIPELINE: list[tuple[str, str]] = [
     ("operators",     "produce_operators.py"),
     ("stops",         "produce_stops.py"),
     ("vehicles",      "produce_vehicles.py"),
-    ("trips",         "produce_trips.py"),        # slow — ~500K records
+    ("trips",         "produce_trips.py"),        # slow — ~1.1M records
     ("passengers",    "produce_passengers.py"),
     ("ab_experiment", "produce_ab_experiment.py"),
 ]

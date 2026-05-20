@@ -14,3 +14,4 @@ dbt/package-lock.yml
 dbt/data/
 
 .vscode/
+ARTICLE.MD

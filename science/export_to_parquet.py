@@ -17,13 +17,14 @@ Streamlit to consume as its primary data source.
 Run order: AFTER ab_testing.py, BEFORE streamlit reload / DAG completion
 """
 
+import json
 import os
 import logging
 import pandas as pd
 import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as pq
-from datetime import datetime
+from datetime import datetime, timezone
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,80 +57,80 @@ def export_table(conn, query: str, filename: str, label: str) -> None:
     log.info("  → %d rows  |  %.1f KB", len(df), os.path.getsize(path) / 1024)
 
 
-EXPORTS = [
-    (
-        "mart_commuter_clusters.parquet",
-        "mart_commuter_clusters",
-        """
-        SELECT
-            passenger_id,
-            origin_barangay,
-            origin_district,
-            destination_type,
-            trip_purpose,
-            trips_per_week,
-            avg_fare_paid_php,
-            transfers_required,
-            wait_time_min,
-            travel_time_min,
-            satisfaction_score,
-            income_bracket,
-            prefers_aircon,
-            cluster_id,
-            cluster_label,
-            is_ab_test_eligible,
-            refreshed_at
-        FROM marts.mart_commuter_clusters
-        ORDER BY cluster_id, passenger_id
+EXPORTS: list[dict] = [
+    {
+        "filename": "mart_commuter_clusters.parquet",
+        "label":    "mart_commuter_clusters",
+        "query":    """
+            SELECT
+                passenger_id,
+                origin_barangay,
+                origin_district,
+                destination_type,
+                trip_purpose,
+                trips_per_week,
+                avg_fare_paid_php,
+                transfers_required,
+                wait_time_min,
+                travel_time_min,
+                satisfaction_score,
+                income_bracket,
+                prefers_aircon,
+                cluster_id,
+                cluster_label,
+                is_ab_test_eligible,
+                refreshed_at
+            FROM marts.mart_commuter_clusters
+            ORDER BY cluster_id, passenger_id
         """,
-    ),
-    (
-        "mart_ab_test_results.parquet",
-        "mart_ab_test_results",
-        """
-        SELECT
-            experiment_record_id,
-            experiment_id,
-            passenger_id,
-            cluster_label,
-            "group",
-            route_variant,
-            test_week,
-            simulated_travel_time_min,
-            simulated_fare_php,
-            transfers_needed,
-            satisfaction_score,
-            would_use_again,
-            p_value,
-            is_significant,
-            effect_size,
-            confidence_interval_low,
-            confidence_interval_high,
-            refreshed_at
-        FROM marts.mart_ab_test_results
-        ORDER BY passenger_id, test_week
+    },
+    {
+        "filename": "mart_ab_test_results.parquet",
+        "label":    "mart_ab_test_results",
+        "query":    """
+            SELECT
+                experiment_record_id,
+                experiment_id,
+                passenger_id,
+                cluster_label,
+                "group",
+                route_variant,
+                test_week,
+                simulated_travel_time_min,
+                simulated_fare_php,
+                transfers_needed,
+                satisfaction_score,
+                would_use_again,
+                p_value,
+                is_significant,
+                effect_size,
+                confidence_interval_low,
+                confidence_interval_high,
+                refreshed_at
+            FROM marts.mart_ab_test_results
+            ORDER BY passenger_id, test_week
         """,
-    ),
-    (
-        "mart_route_summary_recent.parquet",
-        "mart_route_summary (last 30 days)",
-        """
-        SELECT *
-        FROM marts.mart_route_summary
-        WHERE trip_date >= CURRENT_DATE - INTERVAL '30 days'
-        ORDER BY trip_date DESC, route_id
+    },
+    {
+        "filename": "mart_route_summary_recent.parquet",
+        "label":    "mart_route_summary (last 30 days)",
+        "query":    """
+            SELECT *
+            FROM marts.mart_route_summary
+            WHERE trip_date >= CURRENT_DATE - INTERVAL '30 days'
+            ORDER BY trip_date DESC, route_id
         """,
-    ),
-    (
-        "mart_district_ridership_recent.parquet",
-        "mart_district_ridership (last 30 days)",
-        """
-        SELECT *
-        FROM marts.mart_district_ridership
-        WHERE trip_date >= CURRENT_DATE - INTERVAL '30 days'
-        ORDER BY trip_date DESC, district
+    },
+    {
+        "filename": "mart_district_ridership_recent.parquet",
+        "label":    "mart_district_ridership (last 30 days)",
+        "query":    """
+            SELECT *
+            FROM marts.mart_district_ridership
+            WHERE trip_date >= CURRENT_DATE - INTERVAL '30 days'
+            ORDER BY trip_date DESC, district
         """,
-    ),
+    },
 ]
 
 
@@ -159,10 +160,9 @@ def verify_existing_parquets() -> None:
 
 def write_export_manifest() -> None:
     """Write a small JSON manifest so Streamlit knows when data was last refreshed."""
-    import json
     manifest = {
-        "exported_at": datetime.utcnow().isoformat() + "Z",
-        "files": [f for f in os.listdir(PARQUET_DIR) if f.endswith(".parquet")],
+        "exported_at": datetime.now(tz=timezone.utc).isoformat(),
+        "files": sorted(f for f in os.listdir(PARQUET_DIR) if f.endswith(".parquet")),
     }
     manifest_path = os.path.join(PARQUET_DIR, "manifest.json")
     with open(manifest_path, "w") as f:
@@ -175,8 +175,8 @@ def main():
 
     conn = get_connection()
     try:
-        for filename, label, query in EXPORTS:
-            export_table(conn, query, filename, label)
+        for exp in EXPORTS:
+            export_table(conn, exp["query"], exp["filename"], exp["label"])
     finally:
         conn.close()
 

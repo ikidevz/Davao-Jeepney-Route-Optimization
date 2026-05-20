@@ -72,7 +72,12 @@ with DAG(
         task_id="validate_cluster_assignments",
         bash_command=(
             "python -c \""
-            "import psycopg2, os; "
+            "import pyarrow.parquet as pq, psycopg2, os; "
+            "t = pq.read_table('/opt/airflow/science/parquet/cluster_assignments.parquet'); "
+            "n_clusters = t.column('cluster_id').to_pylist(); "
+            "distinct_k = len(set(n_clusters)); "
+            "print(f'cluster_assignments.parquet: {t.num_rows:,} rows, {distinct_k} distinct clusters'); "
+            "assert distinct_k >= 2, f'Too few clusters in parquet: {distinct_k} (minimum 2)'; "
             "conn = psycopg2.connect("
             "  host='postgres', dbname='jeepney_dw',"
             "  user=os.environ['SVC_PIPELINE_USER'],"
@@ -83,10 +88,16 @@ with DAG(
             "  WHERE cluster_id IS NOT NULL GROUP BY cluster_id ORDER BY cluster_id\\\"); "
             "rows = cur.fetchall(); "
             "[print(f'  Cluster {r[0]}: {r[1]:,} passengers') for r in rows]; "
-            "assert len(rows) == 5, f'Expected 5 clusters, got {len(rows)}'; "
-            "conn.close()"
+            "assert len(rows) >= 2, f'Expected at least 2 clusters in staging, got {len(rows)}'; "
+            "assert len(rows) == distinct_k, ("
+            "  f'Cluster count mismatch: parquet has {distinct_k} clusters but '"
+            "  f'staging has {len(rows)} — clustering.py may not have written back yet'"
+            "); "
+            "conn.close(); "
+            "print(f'Cluster validation passed — {distinct_k} clusters confirmed.')"
             "\""
         ),
+        env=SCIENCE_ENV,
     )
 
     run_ab_testing = BashOperator(

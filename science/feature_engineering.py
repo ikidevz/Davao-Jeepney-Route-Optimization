@@ -12,6 +12,7 @@ import logging
 import numpy as np
 import pandas as pd
 import psycopg2
+import joblib
 from sklearn.preprocessing import StandardScaler
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -21,6 +22,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
 log = logging.getLogger("feature_engineering")
+
+SCALER_PATH = os.path.join(os.path.dirname(
+    __file__), "models", "scaler.joblib")
 
 # ---------------------------------------------------------------------------
 # DB connection
@@ -114,7 +118,8 @@ def build_feature_matrix(
     # Check for nulls
     null_counts = pd.isnull(raw_matrix).sum(axis=0)
     if null_counts.any():
-        log.warning("Nulls detected in feature columns — filling with column median")
+        log.warning(
+            "Nulls detected in feature columns — filling with column median")
         for i, col in enumerate(FEATURE_COLS):
             if null_counts[i] > 0:
                 median_val = np.nanmedian(raw_matrix[:, i])
@@ -126,7 +131,8 @@ def build_feature_matrix(
     log.info("Feature matrix shape: %s", scaled.shape)
     log.info(
         "Feature means (raw): %s",
-        {col: round(float(raw_matrix[:, i].mean()), 3) for i, col in enumerate(FEATURE_COLS)},
+        {col: round(float(raw_matrix[:, i].mean()), 3)
+         for i, col in enumerate(FEATURE_COLS)},
     )
 
     return meta, scaled, scaler
@@ -144,6 +150,12 @@ def save_passenger_features_parquet(meta: pd.DataFrame, scaled: np.ndarray) -> N
     log.info("Saved → %s  (%d rows)", out_path, len(out_df))
 
 
+def save_scaler(scaler: StandardScaler) -> None:
+    os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
+    joblib.dump(scaler, SCALER_PATH)
+    log.info("StandardScaler saved → %s", SCALER_PATH)
+
+
 def main():
     log.info("=== Feature Engineering Pipeline START ===")
 
@@ -156,8 +168,8 @@ def main():
             return
 
         meta, scaled, scaler = build_feature_matrix(df)
-
         save_passenger_features_parquet(meta, scaled)
+        save_scaler(scaler)
 
         log.info("=== Feature Engineering Pipeline COMPLETE ===")
         log.info("Output: science/parquet/passenger_features.parquet")

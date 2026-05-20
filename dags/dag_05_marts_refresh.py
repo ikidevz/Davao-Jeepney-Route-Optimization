@@ -23,6 +23,8 @@ DEFAULT_ARGS = {
 }
 
 DBT_DIR = "/opt/airflow/dbt"
+DBT_CMD = f"cd {DBT_DIR} && dbt"
+PROFILES_ARG = f"--profiles-dir ."
 
 DBT_ENV = {
     "DB_HOST":          "postgres",
@@ -60,13 +62,12 @@ with DAG(
 
     dbt_run_marts = BashOperator(
         task_id="dbt_run_marts",
-        bash_command=f"cd {DBT_DIR} && dbt run --select marts",
+        bash_command=f"{DBT_CMD} run --select marts {PROFILES_ARG}",
         env=DBT_ENV,
     )
-
     dbt_test_marts = BashOperator(
         task_id="dbt_test_marts",
-        bash_command=f"cd {DBT_DIR} && dbt test --select marts",
+        bash_command=f"{DBT_CMD} test --select marts {PROFILES_ARG}",
         env=DBT_ENV,
     )
 
