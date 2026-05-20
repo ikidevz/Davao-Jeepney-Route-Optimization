@@ -19,7 +19,6 @@ Business rules:
 
 import random as _rnd
 import random
-import uuid
 from datetime import date, datetime, timedelta, time, timezone
 
 import httpx
@@ -212,7 +211,6 @@ def sample_route_rain(city_rainy_day: bool, route_id: str) -> bool:
     if not city_rainy_day:
         return False
     extra = _ROUTE_RAIN_EXTRA_PROB.get(route_id, 0.0)
-    # Base probability 0.40 already gates entry here; extra shifts remote routes
     return random.random() < (0.40 + extra)
 
 
