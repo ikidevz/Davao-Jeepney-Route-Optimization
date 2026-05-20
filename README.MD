@@ -8,7 +8,7 @@ A full data engineering and data science project analyzing commuter patterns acr
 
 ## What this project does
 
-- **Ingests** 500,000+ synthetic jeepney trip records and 5,000 passenger surveys through a FastAPI Bronze layer into MinIO (Parquet)
+- **Ingests** 1,100,000+ synthetic jeepney trip records and 5,000 passenger surveys through a FastAPI Bronze layer into MinIO (Parquet)
 - **Transforms** raw data through a three-layer dbt pipeline (staging → intermediate → marts) in PostgreSQL
 - **Clusters** commuters into 5 segments using K-Means (Student, Market Worker, CBD Worker, Underserved, Occasional)
 - **Runs an A/B experiment** simulating a direct Matina → SM Lanang express route for the worst-served cluster
@@ -178,7 +178,7 @@ dag_01_producers      → generates synthetic data, POSTs to FastAPI, Parquet la
 
 After `dag_05_marts_refresh` completes, Superset and Streamlit will have live data.
 
-Full pipeline runtime: approximately **15–25 minutes** on first run (500K trip records).
+Full pipeline runtime: approximately **30–50 minutes** on first run (~1.1M trip records across 40 routes).
 
 ---
 
@@ -213,11 +213,11 @@ docker-compose run --rm pipeline bash -c "cd /app/dbt && dbt run --select marts"
 
 | Entity                 | Volume                       |
 | ---------------------- | ---------------------------- |
-| Jeepney routes         | 12 (real Davao routes)       |
-| Stops                  | ~180 (real Davao landmarks)  |
+| Jeepney routes         | 40 (real Davao routes)       |
+| Stops                  | ~303 (real Davao landmarks)  |
 | Districts              | 11 administrative districts  |
 | Barangays              | 182                          |
-| Trip records           | ~500,000 (365 days)          |
+| Trip records           | ~1,100,000 (365 days)        |
 | Passenger surveys      | 5,000                        |
 | A/B experiment records | ~8,000 (8 weeks × Cluster 3) |
 

@@ -1,22 +1,6 @@
 """
 produce_stops.py
 ----------------
-Generates ~280 real Davao City jeepney stops (landmarks, markets, schools,
-hospitals, malls, terminals) and POSTs them to POST /ingest/stops.
-
-Expanded from ~180 stops (R01–R12 only) to ~280 stops covering all 40 routes.
-
-New stop blocks added:
-  R13–R17 : CBD / Poblacion numbered inner-city routes
-  R18–R21 : Toril District outer routes
-  R22–R24 : Bunawan District routes
-  R25–R26 : Paquibato additional corridors
-  R27–R29 : Marilog District remote routes
-  R30–R31 : Tugbok District routes
-  R32     : Baguio District remote route
-  R33–R35 : Talomo District additional routes
-  R36–R38 : Buhangin District additional corridors
-  R39–R40 : Calinan District remote routes
 
 FK dependencies: routes (R01–R40) must exist.
 """

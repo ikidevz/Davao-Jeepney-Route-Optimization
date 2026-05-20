@@ -11,7 +11,7 @@ Records are crafted to naturally form 5 clusters when K-Means is later run:
   Cluster 3 — Underserved Riders  : 2+ transfers, long wait, low satisfaction ← A/B target
   Cluster 4 — Occasional Riders   : low freq, mall/hospital trips
 
-FK dependencies: routes (R01–R12) must exist.
+FK dependencies: routes (R01–R40) must exist.
 """
 
 import random
@@ -60,11 +60,25 @@ CLUSTER_DISTRICT_BIAS: dict[int, list[str]] = {
 
 
 CLUSTER_ROUTE_BIAS: dict[int, list[str]] = {
-    0: ["R02", "R06", "R12", "R04"],
-    1: ["R01", "R05", "R09"],
-    2: ["R02", "R06", "R11", "R07"],
-    3: ["R05", "R09", "R10", "R03"],
-    4: ["R01", "R02", "R04", "R08"],
+    # Cluster 0 — Student Commuters (Talomo, Buhangin, Agdao)
+    # Urban inner-city corridors with school-side routes
+    0: ["R02", "R06", "R12", "R04", "R03", "R14", "R17", "R33", "R36"],
+
+    # Cluster 1 — Market Workers (Toril, Calinan, Tugbok)
+    # Long-haul outer routes terminating at Bankerohan market
+    1: ["R01", "R05", "R09", "R18", "R19", "R20", "R30", "R39", "R40"],
+
+    # Cluster 2 — CBD Workers (Poblacion, Buhangin, Talomo)
+    # Express + high-frequency CBD-bound routes
+    2: ["R02", "R06", "R11", "R07", "R13", "R15", "R16", "R25", "R38"],
+
+    # Cluster 3 — Underserved Riders (Paquibato, Marilog, Bunawan, Calinan)
+    # Remote/fringe routes requiring transfers — A/B test target
+    3: ["R05", "R09", "R10", "R22", "R23", "R24", "R26", "R27", "R28", "R29", "R32"],
+
+    # Cluster 4 — Occasional Riders (Talomo, Buhangin, Toril, Agdao)
+    # Mixed urban routes used for mall/hospital/occasional trips
+    4: ["R01", "R02", "R04", "R08", "R21", "R31", "R34", "R35", "R37"],
 }
 
 DESTINATION_BY_CLUSTER: dict[int, list[str]] = {

@@ -1,16 +1,16 @@
 """
 produce_vehicles.py
 -------------------
-Generates 280 synthetic jeepney vehicles assigned to 40 routes and operators,
+Generates 285 synthetic jeepney vehicles assigned to 40 routes and operators,
 then POSTs to POST /ingest/vehicles.
 
-Expanded from 120 vehicles (12 routes) to 280 vehicles (40 routes).
+Expanded from 120 vehicles (12 routes) to 285 vehicles (40 routes).
 
 Vehicle allocation strategy:
   - High-demand inner-city routes (R01–R17): 8–12 vehicles each
   - Mid-demand named routes (R18–R26, R30–R40): 5–8 vehicles each
   - Remote/low-demand routes (R27–R29, R32): 3–5 vehicles each
-  - Total target: 280 vehicles
+  - Total target: 285 vehicles
 
 Modernization rates:
   - Express / high-frequency routes (R02, R06, R11, R13, R14, R15, R17): 45%
