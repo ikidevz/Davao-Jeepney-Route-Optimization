@@ -18,7 +18,6 @@ sources:
       business logic. Bronze lives in MinIO s3://raw/jeepney/*.
 
     tables:
-
       - name: stg_routes
         description: "12 Davao jeepney routes. Static dimension. One row per route."
 
@@ -40,9 +39,7 @@ sources:
       - name: stg_ab_experiment
         description: "A/B experiment records for Cluster 3 (Underserved Riders) only. ~8,000 rows."
 
-
 models:
-
   # ---------------------------------------------------------------------------
   # stg_routes
   # ---------------------------------------------------------------------------
@@ -120,7 +117,7 @@ models:
           - not_null
           - accepted_values:
               values: ["individual", "cooperative", "corporation"]
-      - name: num_units_owned
+      - name: num_units
         description: "Number of jeepney units under this operator. Must be >= 1."
         tests:
           - not_null
@@ -171,7 +168,15 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["terminal", "market", "school", "hospital", "mall", "residential"]
+              values:
+                [
+                  "terminal",
+                  "market",
+                  "school",
+                  "hospital",
+                  "mall",
+                  "residential",
+                ]
       - name: has_shelter
         description: "TRUE if a waiting shed exists at this stop."
         tests:
@@ -284,8 +289,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["Monday", "Tuesday", "Wednesday", "Thursday",
-                       "Friday", "Saturday", "Sunday"]
+              values:
+                [
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                  "Sunday",
+                ]
       - name: passengers_boarded
         description: "Total passengers for this trip. Must be >= 0."
         tests:

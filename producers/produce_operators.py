@@ -48,7 +48,8 @@ FRANCHISE_WEIGHTS = [0.35, 0.50, 0.15]
 
 def make_ph_mobile() -> str:
     """Generate a synthetic Philippine mobile number."""
-    prefix = random.choice(["0917", "0918", "0919", "0927", "0928", "0939", "0947"])
+    prefix = random.choice(
+        ["0917", "0918", "0919", "0927", "0928", "0939", "0947"])
     return f"{prefix}{random.randint(1000000, 9999999)}"
 
 
@@ -58,7 +59,8 @@ def generate_operators(n: int = 30) -> list[dict]:
 
     for i in range(1, n + 1):
         operator_id = f"OPR-{i:03d}"
-        franchise_type = random.choices(FRANCHISE_TYPES, weights=FRANCHISE_WEIGHTS, k=1)[0]
+        franchise_type = random.choices(
+            FRANCHISE_TYPES, weights=FRANCHISE_WEIGHTS, k=1)[0]
 
         if franchise_type == "individual":
             surname = random.choice(INDIVIDUAL_SURNAMES)
@@ -94,7 +96,7 @@ def generate_operators(n: int = 30) -> list[dict]:
             "operator_name": name,
             "contact_number": make_ph_mobile(),
             "franchise_type": franchise_type,
-            "num_units_owned": num_units,
+            "num_units": num_units,
             "base_district": random.choice(DAVAO_DISTRICTS),
             "is_compliant_puv": random.random() < 0.60,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -105,7 +107,8 @@ def generate_operators(n: int = 30) -> list[dict]:
 
 def main():
     operators = generate_operators(30)
-    print(f"[produce_operators] Posting {len(operators)} operators to {ENDPOINT}")
+    print(
+        f"[produce_operators] Posting {len(operators)} operators to {ENDPOINT}")
     with httpx.Client(timeout=30) as client:
         resp = client.post(ENDPOINT, json=operators)
         resp.raise_for_status()

@@ -21,7 +21,7 @@ select
     operator_name,
     contact_number,
     franchise_type,
-    num_units_owned,
+    num_units,
     base_district,
     is_compliant_puv,
     created_at,

@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS staging.stg_operators (
   operator_name           VARCHAR(150)    NOT NULL,
   contact_number          VARCHAR(20),
   franchise_type          VARCHAR(30)     NOT NULL,
-  num_units_owned         INTEGER         NOT NULL,
+  num_units         INTEGER         NOT NULL,
   base_district           VARCHAR(50)     NOT NULL,
   is_compliant_puv        BOOLEAN         NOT NULL  DEFAULT FALSE,
   created_at              TIMESTAMP       NOT NULL  DEFAULT NOW(),
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS staging.stg_operators (
   CONSTRAINT pk_stg_operators
     PRIMARY KEY (operator_id),
   CONSTRAINT chk_operators_units
-    CHECK (num_units_owned >= 1),
+    CHECK (num_units >= 1),
   CONSTRAINT chk_operators_franchise
     CHECK (franchise_type IN ('individual', 'cooperative', 'corporation'))
 );
