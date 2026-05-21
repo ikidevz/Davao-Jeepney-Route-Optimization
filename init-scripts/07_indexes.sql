@@ -177,6 +177,14 @@ GRANT ALL    ON ALL SEQUENCES IN SCHEMA marts   TO jeepney_admin;
 
 
 -- =============================================================================
+-- staging_views
+GRANT ALL    ON ALL TABLES IN SCHEMA staging_views TO jeepney_admin;
+GRANT SELECT ON ALL TABLES IN SCHEMA staging_views TO jeepney_reader;
+
+-- intermediate
+GRANT ALL    ON ALL TABLES    IN SCHEMA intermediate TO jeepney_admin;
+GRANT SELECT ON ALL TABLES    IN SCHEMA intermediate TO jeepney_reader;
+
 -- SECTION 3 — AUDIT TABLE
 -- Tracks when each init script last ran. Internal only — not exposed to svc_bi.
 -- Stored in staging schema with a _ prefix to signal it is a system table.

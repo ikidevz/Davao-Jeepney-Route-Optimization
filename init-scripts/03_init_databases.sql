@@ -9,8 +9,9 @@
 --       Only airflow_db is created here.
 -- =============================================================================
 
--- Create airflow_db if it doesn't exist yet
-SELECT 'CREATE DATABASE airflow_db OWNER jeepney_user_admin'
+-- Create airflow_db owned by the current superuser (jeepney_user_admin in Docker,
+-- postgres in local dev — current_user works in both environments)
+SELECT format('CREATE DATABASE airflow_db OWNER %I', current_user)
   WHERE NOT EXISTS (
     SELECT FROM pg_database WHERE datname = 'airflow_db'
   )\gexec
@@ -19,7 +20,7 @@ SELECT 'CREATE DATABASE airflow_db OWNER jeepney_user_admin'
 GRANT ALL PRIVILEGES ON DATABASE airflow_db TO svc_pipeline;
 GRANT ALL PRIVILEGES ON DATABASE jeepney_dw  TO svc_pipeline;
 
--- Configure airflow_db
+-- Configure airflow_db public schema
 \c airflow_db
 
 COMMENT ON DATABASE airflow_db IS

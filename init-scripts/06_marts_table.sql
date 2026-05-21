@@ -239,3 +239,13 @@ COMMENT ON COLUMN marts.mart_ab_test_results.effect_size IS
 -- =============================================================================
 -- END OF 06_tables_marts.sql
 -- =============================================================================
+
+-- =============================================================================
+-- OWNERSHIP TRANSFER
+-- Same reason as staging — dbt must own these tables to rebuild them.
+-- =============================================================================
+
+ALTER TABLE marts.mart_route_summary      OWNER TO svc_pipeline;
+ALTER TABLE marts.mart_district_ridership OWNER TO svc_pipeline;
+ALTER TABLE marts.mart_commuter_clusters  OWNER TO svc_pipeline;
+ALTER TABLE marts.mart_ab_test_results    OWNER TO svc_pipeline;

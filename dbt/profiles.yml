@@ -2,7 +2,7 @@ jeepney_dw:
   target: dev
 
   outputs:
-    # ── Local Docker Compose development ──────────────────
+    # ── Local Docker Compose development ──────────────────────────────────────
     dev:
       type: postgres
       host: postgres
@@ -11,11 +11,11 @@ jeepney_dw:
       user: "{{ env_var('SVC_PIPELINE_USER', 'svc_pipeline') }}"
       password: "{{ env_var('SVC_PIPELINE_PASSWORD', 'pipeline_pass_123') }}"
       schema: staging
-      threads: 2
+      threads: 1
       connect_timeout: 30
       keepalives_idle: 0
 
-    # ── Production ────────────────────────────────────────
+    # ── Production ────────────────────────────────────────────────────────────
     prod:
       type: postgres
       host: "{{ env_var('DB_HOST') }}"
@@ -24,6 +24,6 @@ jeepney_dw:
       user: "{{ env_var('SVC_PIPELINE_USER', 'svc_pipeline') }}"
       password: "{{ env_var('SVC_PIPELINE_PASSWORD', 'pipeline_pass_123') }}"
       schema: staging
-      threads: 2
+      threads: 1
       connect_timeout: 60
       keepalives_idle: 300

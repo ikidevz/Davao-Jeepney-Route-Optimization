@@ -1,7 +1,7 @@
 # =============================================================================
 # dbt_project.yml
 # Davao Jeepney Route Optimization — dbt project configuration
-# dbt version : 1.12.0-b1  (as seen in Airflow logs)
+# dbt version : 1.12.0-b1
 # Profiles dir: /opt/airflow/dbt/profiles.yml
 # =============================================================================
 
@@ -18,22 +18,25 @@ models:
   jeepney_dw:
     # -------------------------------------------------------------------------
     # STAGING — Silver layer
-    # All views over FK-linked source tables.
-    # threads: 1 in profiles.yml serialises execution — no deadlock possible.
+    # Source tables live in staging schema (created by init scripts).
+    # dbt views land in staging_views to avoid name collision with source tables.
+    # threads: 1 in profiles.yml serialises execution — no FK deadlock possible.
     # -------------------------------------------------------------------------
     staging:
       +materialized: view
-      +schema: staging
+      +schema: staging_views
       +tags:
         - silver
         - staging
 
     # -------------------------------------------------------------------------
     # INTERMEDIATE — pre-Gold aggregations
-    # No FK constraint contention — safe to run in parallel.
+    # int_passenger_features is a TABLE (written to staging schema so
+    # science/clustering.py can read it directly from PostgreSQL).
+    # All others are ephemeral (inlined as CTEs — never written to DB).
     # -------------------------------------------------------------------------
     intermediate:
-      +materialized: table
+      +materialized: ephemeral
       +schema: intermediate
       +tags:
         - intermediate

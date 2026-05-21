@@ -403,3 +403,18 @@ COMMENT ON COLUMN staging.stg_ab_experiment.route_variant IS
 -- =============================================================================
 -- END OF 05_tables_staging.sql
 -- =============================================================================
+
+-- =============================================================================
+-- OWNERSHIP TRANSFER
+-- dbt runs as svc_pipeline and needs to be the table owner to DROP/CREATE
+-- on each run. Tables were created by the superuser above, so we transfer
+-- ownership explicitly here.
+-- =============================================================================
+
+ALTER TABLE staging.stg_routes           OWNER TO svc_pipeline;
+ALTER TABLE staging.stg_operators        OWNER TO svc_pipeline;
+ALTER TABLE staging.stg_stops            OWNER TO svc_pipeline;
+ALTER TABLE staging.stg_vehicles         OWNER TO svc_pipeline;
+ALTER TABLE staging.stg_trips            OWNER TO svc_pipeline;
+ALTER TABLE staging.stg_passenger_survey OWNER TO svc_pipeline;
+ALTER TABLE staging.stg_ab_experiment    OWNER TO svc_pipeline;
