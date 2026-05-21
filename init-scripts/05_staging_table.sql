@@ -1,19 +1,11 @@
 -- =============================================================================
 -- 05_tables_staging.sql
 -- Davao Jeepney Route Optimization — Data Lakehouse
--- PURPOSE : Create all Silver layer tables in the staging schema
+-- PURPOSE : Create all Silver (source) tables in the raw schema
+-- NOTE    : dbt views land in staging schema — kept separate to avoid name collision
 -- RUN AS  : postgres superuser (tables will be owned by svc_pipeline
 --           because svc_pipeline owns the staging schema)
 -- ORDER   : Run AFTER 04_schemas.sql
---
--- Creation order (FK-safe):
---   1. stg_routes           — no FK dependencies
---   2. stg_operators        — no FK dependencies
---   3. stg_stops            — FK → stg_routes
---   4. stg_vehicles         — FK → stg_routes, stg_operators
---   5. stg_trips            — FK → stg_routes, stg_vehicles
---   6. stg_passenger_survey — FK → stg_routes
---   7. stg_ab_experiment    — FK → stg_passenger_survey
 -- =============================================================================
 
 -- Guard: must be connected to jeepney_dw
@@ -25,13 +17,13 @@ END $$;
 
 
 -- =============================================================================
--- 1. staging.stg_routes
+-- 1. raw.stg_routes
 -- Grain  : One row per jeepney route
 -- Source : MinIO s3://raw/jeepney/routes/
 -- Volume : 12 rows (static dimension)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS staging.stg_routes (
+CREATE TABLE IF NOT EXISTS raw.stg_routes (
   route_id                VARCHAR(10)   NOT NULL,
   route_name              VARCHAR(100)  NOT NULL,
   origin                  VARCHAR(100)  NOT NULL,
@@ -62,28 +54,28 @@ CREATE TABLE IF NOT EXISTS staging.stg_routes (
     CHECK (off_peak_frequency_min >= peak_frequency_min)
 );
 
-COMMENT ON TABLE  staging.stg_routes IS
+COMMENT ON TABLE  raw.stg_routes IS
   'Silver: 12 Davao jeepney routes. Grain: one row per route. Static dimension.';
-COMMENT ON COLUMN staging.stg_routes.route_id IS
+COMMENT ON COLUMN raw.stg_routes.route_id IS
   'PK. Format: R01–R12. Matches LTFRB route code convention.';
-COMMENT ON COLUMN staging.stg_routes.base_fare_php IS
+COMMENT ON COLUMN raw.stg_routes.base_fare_php IS
   'Minimum fare per LTFRB 2026 ruling — ₱13.00 for first 4 km.';
-COMMENT ON COLUMN staging.stg_routes.peak_frequency_min IS
+COMMENT ON COLUMN raw.stg_routes.peak_frequency_min IS
   'Headway in minutes between trips during AM/PM peak hours.';
-COMMENT ON COLUMN staging.stg_routes.off_peak_frequency_min IS
+COMMENT ON COLUMN raw.stg_routes.off_peak_frequency_min IS
   'Headway in minutes during midday and off-peak periods. Always >= peak.';
-COMMENT ON COLUMN staging.stg_routes.is_active IS
+COMMENT ON COLUMN raw.stg_routes.is_active IS
   'FALSE if route is suspended or rerouted under PUV Modernization Program.';
 
 
 -- =============================================================================
--- 2. staging.stg_operators
+-- 2. raw.stg_operators
 -- Grain  : One row per franchise holder or cooperative
 -- Source : MinIO s3://raw/jeepney/operators/
 -- Volume : ~30–50 rows (static dimension)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS staging.stg_operators (
+CREATE TABLE IF NOT EXISTS raw.stg_operators (
   operator_id         VARCHAR(10)   NOT NULL,
   operator_name       VARCHAR(150)  NOT NULL,
   contact_number      VARCHAR(20),
@@ -102,22 +94,22 @@ CREATE TABLE IF NOT EXISTS staging.stg_operators (
     CHECK (franchise_type IN ('individual', 'cooperative', 'corporation'))
 );
 
-COMMENT ON TABLE  staging.stg_operators IS
+COMMENT ON TABLE  raw.stg_operators IS
   'Silver: jeepney franchise holders and cooperatives. Grain: one row per operator.';
-COMMENT ON COLUMN staging.stg_operators.franchise_type IS
+COMMENT ON COLUMN raw.stg_operators.franchise_type IS
   'individual = solo driver-operator, cooperative = group, corporation = company-owned.';
-COMMENT ON COLUMN staging.stg_operators.is_compliant_puv IS
+COMMENT ON COLUMN raw.stg_operators.is_compliant_puv IS
   'TRUE if operator has complied with LTFRB PUV Modernization Program requirements.';
 
 
 -- =============================================================================
--- 3. staging.stg_stops
+-- 3. raw.stg_stops
 -- Grain  : One row per jeepney stop
 -- Source : MinIO s3://raw/jeepney/stops/
 -- Volume : ~180 rows (static dimension, anchored on real Davao landmarks)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS staging.stg_stops (
+CREATE TABLE IF NOT EXISTS raw.stg_stops (
   stop_id              VARCHAR(10)   NOT NULL,
   stop_name            VARCHAR(150)  NOT NULL,
   barangay             VARCHAR(100)  NOT NULL,
@@ -134,7 +126,7 @@ CREATE TABLE IF NOT EXISTS staging.stg_stops (
   CONSTRAINT pk_stg_stops
     PRIMARY KEY (stop_id),
   CONSTRAINT fk_stops_route
-    FOREIGN KEY (route_id) REFERENCES staging.stg_routes (route_id),
+    FOREIGN KEY (route_id) REFERENCES raw.stg_routes (route_id),
   CONSTRAINT chk_stops_lat
     CHECK (latitude  BETWEEN 6.8 AND 7.5),
   CONSTRAINT chk_stops_lon
@@ -145,22 +137,22 @@ CREATE TABLE IF NOT EXISTS staging.stg_stops (
     CHECK (stop_type IN ('terminal', 'market', 'school', 'hospital', 'mall', 'residential'))
 );
 
-COMMENT ON TABLE  staging.stg_stops IS
+COMMENT ON TABLE  raw.stg_stops IS
   'Silver: ~180 stops anchored on real Davao City landmarks. Grain: one row per stop.';
-COMMENT ON COLUMN staging.stg_stops.latitude IS
+COMMENT ON COLUMN raw.stg_stops.latitude IS
   'GPS latitude. Valid range: Davao City geographic bounds (6.8–7.5).';
-COMMENT ON COLUMN staging.stg_stops.has_shelter IS
+COMMENT ON COLUMN raw.stg_stops.has_shelter IS
   'TRUE if stop has a waiting shed. Approx 70% of urban stops = TRUE.';
 
 
 -- =============================================================================
--- 4. staging.stg_vehicles
+-- 4. raw.stg_vehicles
 -- Grain  : One row per jeepney unit
 -- Source : MinIO s3://raw/jeepney/vehicles/
 -- Volume : 120 rows (static dimension)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS staging.stg_vehicles (
+CREATE TABLE IF NOT EXISTS raw.stg_vehicles (
   vehicle_id               VARCHAR(10)  NOT NULL,
   plate_number             VARCHAR(15)  NOT NULL,
   vehicle_type             VARCHAR(30)  NOT NULL,
@@ -179,9 +171,9 @@ CREATE TABLE IF NOT EXISTS staging.stg_vehicles (
   CONSTRAINT uq_vehicles_plate
     UNIQUE (plate_number),
   CONSTRAINT fk_vehicles_route
-    FOREIGN KEY (route_assigned) REFERENCES staging.stg_routes    (route_id),
+    FOREIGN KEY (route_assigned) REFERENCES raw.stg_routes    (route_id),
   CONSTRAINT fk_vehicles_operator
-    FOREIGN KEY (operator_id)    REFERENCES staging.stg_operators (operator_id),
+    FOREIGN KEY (operator_id)    REFERENCES raw.stg_operators (operator_id),
   CONSTRAINT chk_vehicles_capacity
     CHECK (capacity BETWEEN 10 AND 30),
   CONSTRAINT chk_vehicles_year
@@ -194,24 +186,24 @@ CREATE TABLE IF NOT EXISTS staging.stg_vehicles (
     CHECK (fuel_type IN ('diesel', 'euro4_diesel', 'electric'))
 );
 
-COMMENT ON TABLE  staging.stg_vehicles IS
+COMMENT ON TABLE  raw.stg_vehicles IS
   'Silver: 120 jeepney units across 12 routes. Grain: one row per vehicle.';
-COMMENT ON COLUMN staging.stg_vehicles.plate_number IS
+COMMENT ON COLUMN raw.stg_vehicles.plate_number IS
   'Synthetic PH plate format (e.g. DBX-1234). Enforced unique.';
-COMMENT ON COLUMN staging.stg_vehicles.capacity IS
+COMMENT ON COLUMN raw.stg_vehicles.capacity IS
   '16 seats for traditional units, 23 for modernized PUV (LTFRB standard).';
-COMMENT ON COLUMN staging.stg_vehicles.avg_fuel_cost_daily_php IS
+COMMENT ON COLUMN raw.stg_vehicles.avg_fuel_cost_daily_php IS
   'Based on Davao City diesel price ~₱65/L as of 2026. Higher for longer routes.';
 
 
 -- =============================================================================
--- 5. staging.stg_trips
+-- 5. raw.stg_trips
 -- Grain  : One row per trip run (one vehicle, one direction, one day)
 -- Source : MinIO s3://raw/jeepney/trips/
 -- Volume : ~500,000 rows (365 days × 12 routes × ~114 avg trips/day)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS staging.stg_trips (
+CREATE TABLE IF NOT EXISTS raw.stg_trips (
   trip_id              VARCHAR(20)   NOT NULL,
   route_id             VARCHAR(10)   NOT NULL,
   vehicle_id           VARCHAR(10)   NOT NULL,
@@ -234,9 +226,9 @@ CREATE TABLE IF NOT EXISTS staging.stg_trips (
   CONSTRAINT pk_stg_trips
     PRIMARY KEY (trip_id),
   CONSTRAINT fk_trips_route
-    FOREIGN KEY (route_id)   REFERENCES staging.stg_routes   (route_id),
+    FOREIGN KEY (route_id)   REFERENCES raw.stg_routes   (route_id),
   CONSTRAINT fk_trips_vehicle
-    FOREIGN KEY (vehicle_id) REFERENCES staging.stg_vehicles (vehicle_id),
+    FOREIGN KEY (vehicle_id) REFERENCES raw.stg_vehicles (vehicle_id),
   CONSTRAINT chk_trips_passengers
     CHECK (passengers_boarded >= 0),
   CONSTRAINT chk_trips_revenue
@@ -262,18 +254,18 @@ CREATE TABLE IF NOT EXISTS staging.stg_trips (
     )
 );
 
-COMMENT ON TABLE  staging.stg_trips IS
+COMMENT ON TABLE  raw.stg_trips IS
   'Silver: ~500K trip records over 1 year. Grain: one trip run per vehicle per day.';
-COMMENT ON COLUMN staging.stg_trips.load_factor IS
+COMMENT ON COLUMN raw.stg_trips.load_factor IS
   'passengers_boarded / vehicle capacity. Above 1.0 = overcrowded (allowed up to 1.5).';
-COMMENT ON COLUMN staging.stg_trips.is_on_time IS
+COMMENT ON COLUMN raw.stg_trips.is_on_time IS
   'TRUE when delay_min <= 5. Enforced by chk_trips_on_time_logic constraint.';
-COMMENT ON COLUMN staging.stg_trips.time_period IS
+COMMENT ON COLUMN raw.stg_trips.time_period IS
   'AM_peak = 6–9am, midday = 9am–5pm, PM_peak = 5–8pm, off_peak = other hours.';
 
 
 -- =============================================================================
--- 6. staging.stg_passenger_survey
+-- 6. raw.stg_passenger_survey
 -- Grain  : One row per survey respondent
 -- Source : MinIO s3://raw/jeepney/passengers/
 -- Volume : 5,000 rows
@@ -281,7 +273,7 @@ COMMENT ON COLUMN staging.stg_trips.time_period IS
 --          science/clustering.py writes them after K-Means runs.
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS staging.stg_passenger_survey (
+CREATE TABLE IF NOT EXISTS raw.stg_passenger_survey (
   passenger_id        VARCHAR(15)   NOT NULL,
   survey_date         DATE          NOT NULL,
   origin_barangay     VARCHAR(100)  NOT NULL,
@@ -305,7 +297,7 @@ CREATE TABLE IF NOT EXISTS staging.stg_passenger_survey (
   CONSTRAINT pk_stg_passenger_survey
     PRIMARY KEY (passenger_id),
   CONSTRAINT fk_survey_route
-    FOREIGN KEY (primary_route_used) REFERENCES staging.stg_routes (route_id),
+    FOREIGN KEY (primary_route_used) REFERENCES raw.stg_routes (route_id),
   CONSTRAINT chk_survey_satisfaction
     CHECK (satisfaction_score BETWEEN 1 AND 5),
   CONSTRAINT chk_survey_trips_per_week
@@ -326,19 +318,19 @@ CREATE TABLE IF NOT EXISTS staging.stg_passenger_survey (
     CHECK (income_bracket IN ('low', 'middle', 'high'))
 );
 
-COMMENT ON TABLE  staging.stg_passenger_survey IS
+COMMENT ON TABLE  raw.stg_passenger_survey IS
   'Silver: 5,000 commuter survey records. Grain: one row per respondent.';
-COMMENT ON COLUMN staging.stg_passenger_survey.cluster_id IS
+COMMENT ON COLUMN raw.stg_passenger_survey.cluster_id IS
   'NULL at load time. Written by science/clustering.py after K-Means. Values: 0–4.';
-COMMENT ON COLUMN staging.stg_passenger_survey.cluster_label IS
+COMMENT ON COLUMN raw.stg_passenger_survey.cluster_label IS
   'NULL at load time. Human-readable label written by clustering.py. '
   'Examples: Underserved Riders, Student Commuters.';
-COMMENT ON COLUMN staging.stg_passenger_survey.satisfaction_score IS
+COMMENT ON COLUMN raw.stg_passenger_survey.satisfaction_score IS
   '1=very poor, 2=poor, 3=fair, 4=good, 5=excellent.';
 
 
 -- =============================================================================
--- 7. staging.stg_ab_experiment
+-- 7. raw.stg_ab_experiment
 -- Grain  : One row per passenger per test week
 -- Source : MinIO s3://raw/jeepney/ab_experiment/
 -- Volume : ~8,000 rows (1,000 Cluster 3 passengers × 8 weeks)
@@ -346,7 +338,7 @@ COMMENT ON COLUMN staging.stg_passenger_survey.satisfaction_score IS
 --          Statistical outputs live in marts.mart_ab_test_results — not here.
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS staging.stg_ab_experiment (
+CREATE TABLE IF NOT EXISTS raw.stg_ab_experiment (
   experiment_record_id       VARCHAR(20)   NOT NULL,
   experiment_id              VARCHAR(10)   NOT NULL  DEFAULT 'EXP-001',
   passenger_id               VARCHAR(15)   NOT NULL,
@@ -365,7 +357,7 @@ CREATE TABLE IF NOT EXISTS staging.stg_ab_experiment (
   CONSTRAINT pk_stg_ab_experiment
     PRIMARY KEY (experiment_record_id),
   CONSTRAINT fk_ab_passenger
-    FOREIGN KEY (passenger_id) REFERENCES staging.stg_passenger_survey (passenger_id),
+    FOREIGN KEY (passenger_id) REFERENCES raw.stg_passenger_survey (passenger_id),
   CONSTRAINT chk_ab_cluster_only_3
     CHECK (cluster_id = 3),
   CONSTRAINT chk_ab_group
@@ -389,14 +381,14 @@ CREATE TABLE IF NOT EXISTS staging.stg_ab_experiment (
     )
 );
 
-COMMENT ON TABLE  staging.stg_ab_experiment IS
+COMMENT ON TABLE  raw.stg_ab_experiment IS
   'Silver: A/B experiment records for Cluster 3 (Underserved Riders) only. '
   'Grain: one row per passenger per week. ~8,000 rows.';
-COMMENT ON COLUMN staging.stg_ab_experiment."group" IS
+COMMENT ON COLUMN raw.stg_ab_experiment."group" IS
   'Quoted — GROUP is a PostgreSQL reserved word. Values: control | treatment.';
-COMMENT ON COLUMN staging.stg_ab_experiment.cluster_id IS
+COMMENT ON COLUMN raw.stg_ab_experiment.cluster_id IS
   'Always 3 (Underserved Riders). Enforced by chk_ab_cluster_only_3.';
-COMMENT ON COLUMN staging.stg_ab_experiment.route_variant IS
+COMMENT ON COLUMN raw.stg_ab_experiment.route_variant IS
   'A_existing_route = control (1–2 transfers, ~55 min avg). '
   'B_express_direct = treatment (0 transfers, ~35 min avg).';
 
@@ -411,10 +403,10 @@ COMMENT ON COLUMN staging.stg_ab_experiment.route_variant IS
 -- ownership explicitly here.
 -- =============================================================================
 
-ALTER TABLE staging.stg_routes           OWNER TO svc_pipeline;
-ALTER TABLE staging.stg_operators        OWNER TO svc_pipeline;
-ALTER TABLE staging.stg_stops            OWNER TO svc_pipeline;
-ALTER TABLE staging.stg_vehicles         OWNER TO svc_pipeline;
-ALTER TABLE staging.stg_trips            OWNER TO svc_pipeline;
-ALTER TABLE staging.stg_passenger_survey OWNER TO svc_pipeline;
-ALTER TABLE staging.stg_ab_experiment    OWNER TO svc_pipeline;
+ALTER TABLE raw.stg_routes           OWNER TO svc_pipeline;
+ALTER TABLE raw.stg_operators        OWNER TO svc_pipeline;
+ALTER TABLE raw.stg_stops            OWNER TO svc_pipeline;
+ALTER TABLE raw.stg_vehicles         OWNER TO svc_pipeline;
+ALTER TABLE raw.stg_trips            OWNER TO svc_pipeline;
+ALTER TABLE raw.stg_passenger_survey OWNER TO svc_pipeline;
+ALTER TABLE raw.stg_ab_experiment    OWNER TO svc_pipeline;

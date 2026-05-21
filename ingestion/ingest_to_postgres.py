@@ -55,13 +55,13 @@ TODAY = date.today().isoformat()
 # MinIO path:  raw/jeepney/{entity}/date={date}/{entity}.parquet
 # ---------------------------------------------------------------------------
 ENTITY_TABLE_MAP = {
-    "routes":        "staging.stg_routes",       # no FK deps
-    "operators":     "staging.stg_operators",    # no FK deps
-    "stops":         "staging.stg_stops",        # FK → routes
-    "vehicles":      "staging.stg_vehicles",     # FK → routes, operators
-    "trips":         "staging.stg_trips",        # FK → routes, vehicles
-    "passengers":    "staging.stg_passenger_survey",  # FK → routes
-    "ab_experiment": "staging.stg_ab_experiment",     # FK → passengers ← MUST be last
+    "routes":        "raw.stg_routes",       # no FK deps
+    "operators":     "raw.stg_operators",    # no FK deps
+    "stops":         "raw.stg_stops",        # FK → routes
+    "vehicles":      "raw.stg_vehicles",     # FK → routes, operators
+    "trips":         "raw.stg_trips",        # FK → routes, vehicles
+    "passengers":    "raw.stg_passenger_survey",  # FK → routes
+    "ab_experiment": "raw.stg_ab_experiment",     # FK → passengers ← MUST be last
 }
 
 # ---------------------------------------------------------------------------
@@ -309,7 +309,7 @@ def ingest_entity(entity: str, table: str, s3, conn) -> int:
         combined = drop_fk_orphans(
             combined,
             fk_col="passenger_id",
-            parent_table="staging.stg_passenger_survey",
+            parent_table="raw.stg_passenger_survey",
             parent_pk="passenger_id",
             conn=conn,
         )

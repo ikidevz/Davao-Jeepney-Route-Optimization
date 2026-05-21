@@ -32,7 +32,7 @@ select
     v.created_at,
     v.updated_at
 
-from {{ source('staging', 'stg_vehicles') }} as v
+from {{ source('raw', 'stg_vehicles') }} as v
 
 -- NOTE: No active-only filter here. Staging exposes all vehicles so FK tests
 -- on stg_trips (vehicle_id) never fail for retired units.

@@ -17,20 +17,56 @@ Business rules:
 
 """
 
+import os
 import random as _rnd
 import random
 from datetime import date, datetime, timedelta, time, timezone
 
+import boto3
 import httpx
 import numpy as np
+from botocore.config import Config
 
 API_BASE = "http://fastapi:8000"
 ENDPOINT = f"{API_BASE}/ingest/trips"
 CHUNK_SIZE = 10_000
 SEED = 42
 
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
+MINIO_ACCESS = os.getenv("MINIO_ACCESS_KEY", "minioLocalAccessKey")
+MINIO_SECRET = os.getenv("MINIO_SECRET_KEY", "minioLocalSecretKey123")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "raw")
+ENTITY = "trips"
+
 rng = np.random.default_rng(SEED)
 random.seed(SEED)
+
+
+def clear_minio_partition(partition_date: str | None = None) -> None:
+    """Delete all parquet files for this entity+date so re-runs don't accumulate stale chunks."""
+    run_date = partition_date or date.today().isoformat()
+    prefix = f"jeepney/{ENTITY}/date={run_date}/"
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=f"http://{MINIO_ENDPOINT}",
+        aws_access_key_id=MINIO_ACCESS,
+        aws_secret_access_key=MINIO_SECRET,
+        region_name="us-east-1",
+        config=Config(signature_version="s3v4"),
+    )
+    paginator = s3.get_paginator("list_objects_v2")
+    keys_deleted = 0
+    for page in paginator.paginate(Bucket=MINIO_BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            s3.delete_object(Bucket=MINIO_BUCKET, Key=obj["Key"])
+            keys_deleted += 1
+    if keys_deleted:
+        print(
+            f"[produce_trips] 🗑  Cleared {keys_deleted} stale file(s) from s3://{MINIO_BUCKET}/{prefix}")
+    else:
+        print(
+            f"[produce_trips] ✓ Partition s3://{MINIO_BUCKET}/{prefix} was already clean")
+
 
 # ── Route metadata — vehicle ranges match produce_vehicles.py exactly ─────────
 ROUTE_META = {
@@ -311,7 +347,8 @@ def trip_generator():
 
 
 def post_chunk(client: httpx.Client, chunk: list[dict], chunk_idx: int):
-    resp = client.post(ENDPOINT, json=chunk, timeout=120)
+    resp = client.post(ENDPOINT, json=chunk, params={
+                       "chunk_index": chunk_idx}, timeout=120)
     resp.raise_for_status()
     print(
         f"[produce_trips]   chunk {chunk_idx:05d} ({len(chunk):,} records) → {resp.json()}")
@@ -332,6 +369,8 @@ def main():
     print(f"[produce_trips]   Est total : ~{est_total:,}")
     print(
         f"[produce_trips]   Endpoint  : {ENDPOINT}  |  Chunk: {CHUNK_SIZE:,}")
+
+    clear_minio_partition()
 
     chunk: list[dict] = []
     chunk_idx = 1

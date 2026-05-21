@@ -20,16 +20,20 @@ router = APIRouter(prefix="/ingest", tags=["Stops"])
 def ingest_stops(
     payload: list[StopPayload],
     partition_date: date = Query(default=None),
+    chunk_index: int = Query(default=None),
 ) -> IngestResponse:
     if not payload:
-        raise HTTPException(status_code=422, detail="Payload must contain at least one record.")
+        raise HTTPException(
+            status_code=422, detail="Payload must contain at least one record.")
 
     records = [r.model_dump() for r in payload]
 
     try:
-        s3_path = write_parquet(records, entity="stops", partition_date=partition_date)
+        s3_path = write_parquet(
+            records, entity="stops", partition_date=partition_date, chunk_index=chunk_index)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"MinIO write failed: {exc}")
+        raise HTTPException(
+            status_code=500, detail=f"MinIO write failed: {exc}")
 
     return IngestResponse(
         status="success",

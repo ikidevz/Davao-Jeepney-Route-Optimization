@@ -36,12 +36,23 @@ COMMENT ON DATABASE jeepney_dw IS
 -- CREATE/DROP/ALTER tables freely without needing superuser.
 -- =============================================================================
 
+-- raw schema: source tables loaded by ingest_to_postgres.py from MinIO Parquet.
+-- Kept separate from staging so dbt views (which also land in staging) do not
+-- overwrite the source tables on every run.
+CREATE SCHEMA IF NOT EXISTS raw AUTHORIZATION svc_pipeline;
+
+COMMENT ON SCHEMA raw IS
+  'Bronze->Silver landing zone. Source tables written by ingest_to_postgres.py. '
+  'Tables: stg_routes, stg_stops, stg_operators, stg_vehicles, stg_trips, '
+  'stg_passenger_survey, stg_ab_experiment. dbt reads these as sources. '
+  'Owner: svc_pipeline.';
+
 CREATE SCHEMA IF NOT EXISTS staging AUTHORIZATION svc_pipeline;
 
 COMMENT ON SCHEMA staging IS
-  'Silver layer. Cleaned and typed data loaded from MinIO Parquet via ingest_to_postgres.py. '
-  'Tables: stg_routes, stg_stops, stg_operators, stg_vehicles, stg_trips, '
-  'stg_passenger_survey, stg_ab_experiment. Owner: svc_pipeline.';
+  'Silver layer. dbt-managed views over raw.stg_* source tables. '
+  'Kept separate from raw to prevent dbt view-swap from overwriting ingested data. '
+  'Owner: svc_pipeline.';
 
 CREATE SCHEMA IF NOT EXISTS marts AUTHORIZATION svc_pipeline;
 
@@ -56,6 +67,10 @@ COMMENT ON SCHEMA marts IS
 -- USAGE lets a role see inside the schema and reference its objects.
 -- Without USAGE, table-level grants are useless.
 -- =============================================================================
+
+GRANT ALL   ON SCHEMA raw     TO jeepney_admin;
+GRANT USAGE ON SCHEMA raw     TO jeepney_writer;
+GRANT USAGE ON SCHEMA raw     TO jeepney_reader;
 
 GRANT ALL   ON SCHEMA staging TO jeepney_admin;
 GRANT USAGE ON SCHEMA staging TO jeepney_writer;
@@ -73,7 +88,21 @@ GRANT USAGE ON SCHEMA marts   TO jeepney_reader;
 -- would reset to nothing after every run.
 -- =============================================================================
 
--- staging — future tables
+-- raw — future tables (source tables from ingest_to_postgres.py)
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA raw
+  GRANT ALL    ON TABLES    TO jeepney_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA raw
+  GRANT INSERT ON TABLES    TO jeepney_writer;
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA raw
+  GRANT SELECT ON TABLES    TO jeepney_reader;
+
+-- raw — future sequences
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA raw
+  GRANT ALL              ON SEQUENCES TO jeepney_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA raw
+  GRANT USAGE, SELECT    ON SEQUENCES TO jeepney_writer;
+
+-- staging — future tables (dbt views)
 ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
   GRANT ALL    ON TABLES    TO jeepney_admin;
 ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging

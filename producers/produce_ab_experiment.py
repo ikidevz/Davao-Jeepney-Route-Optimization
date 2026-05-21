@@ -195,9 +195,6 @@ def main():
     print(f"  Expected records     : {CLUSTER_3_COUNT * N_WEEKS:,}")
     print(f"  Endpoint             : {ENDPOINT}")
 
-    # Guard: verify the computed Cluster 3 ID range is self-consistent
-    # with CLUSTER_SIZES. If produce_passengers.py changes cluster counts
-    # this assertion will catch the mismatch before any records are posted.
     expected_start = sum(CLUSTER_SIZES[c]
                          for c in sorted(CLUSTER_SIZES) if c < 3) + 1
     expected_end = expected_start + CLUSTER_SIZES[3] - 1
@@ -217,9 +214,10 @@ def main():
     with httpx.Client(timeout=60) as client:
         for i in range(0, len(records), CHUNK_SIZE):
             batch = records[i: i + CHUNK_SIZE]
-            resp = client.post(ENDPOINT, json=batch, timeout=60)
-            resp.raise_for_status()
             chunk_n = i // CHUNK_SIZE + 1
+            resp = client.post(ENDPOINT, json=batch, params={
+                               "chunk_index": chunk_n}, timeout=60)
+            resp.raise_for_status()
             print(f"[produce_ab_experiment]   chunk {chunk_n}: {resp.json()}")
 
     print(

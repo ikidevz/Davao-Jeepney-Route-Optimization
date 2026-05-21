@@ -27,4 +27,4 @@ select
     created_at,
     updated_at
 
-from {{ source('staging', 'stg_operators') }}
+from {{ source('raw', 'stg_operators') }}

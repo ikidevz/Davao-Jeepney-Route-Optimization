@@ -5,16 +5,52 @@ produce_stops.py
 FK dependencies: routes (R01–R40) must exist.
 """
 
+import os
 import random
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
+import boto3
 import httpx
+from botocore.config import Config
 
 API_BASE = "http://fastapi:8000"
 ENDPOINT = f"{API_BASE}/ingest/stops"
 
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
+MINIO_ACCESS = os.getenv("MINIO_ACCESS_KEY", "minioLocalAccessKey")
+MINIO_SECRET = os.getenv("MINIO_SECRET_KEY", "minioLocalSecretKey123")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "raw")
+ENTITY = "stops"
+
 SEED = 42
 random.seed(SEED)
+
+
+def clear_minio_partition(partition_date: str | None = None) -> None:
+    """Delete all parquet files for this entity+date so re-runs don't accumulate stale chunks."""
+    run_date = partition_date or date.today().isoformat()
+    prefix = f"jeepney/{ENTITY}/date={run_date}/"
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=f"http://{MINIO_ENDPOINT}",
+        aws_access_key_id=MINIO_ACCESS,
+        aws_secret_access_key=MINIO_SECRET,
+        region_name="us-east-1",
+        config=Config(signature_version="s3v4"),
+    )
+    paginator = s3.get_paginator("list_objects_v2")
+    keys_deleted = 0
+    for page in paginator.paginate(Bucket=MINIO_BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            s3.delete_object(Bucket=MINIO_BUCKET, Key=obj["Key"])
+            keys_deleted += 1
+    if keys_deleted:
+        print(
+            f"[produce_stops] 🗑  Cleared {keys_deleted} stale file(s) from s3://{MINIO_BUCKET}/{prefix}")
+    else:
+        print(
+            f"[produce_stops] ✓ Partition s3://{MINIO_BUCKET}/{prefix} was already clean")
+
 
 # stop_type ENUM from data model
 STOP_TYPES = ["terminal", "market", "school",
@@ -789,7 +825,6 @@ def build_stops(raw: list[tuple]) -> list[dict]:
     stops = []
     for idx, row in enumerate(raw, start=1):
         (name, brgy, district, lat, lon, stype, shelter, boardings, route_id) = row
-        # Add small random jitter to avoid perfect duplicates in GPS
         lat_j = lat + random.uniform(-0.0005, 0.0005)
         lon_j = lon + random.uniform(-0.0005, 0.0005)
         stops.append({
@@ -813,6 +848,8 @@ def main():
     total = len(stops)
     print(f"[produce_stops] Posting {total} stops to {ENDPOINT}")
 
+    clear_minio_partition()
+
     # Coverage summary
     from collections import Counter
     route_counts = Counter(s["route_id"] for s in stops)
@@ -831,9 +868,11 @@ def main():
     with httpx.Client(timeout=60) as client:
         for i in range(0, total, CHUNK):
             batch = stops[i: i + CHUNK]
-            resp = client.post(ENDPOINT, json=batch)
+            chunk_idx = i // CHUNK + 1
+            resp = client.post(ENDPOINT, json=batch, params={
+                               "chunk_index": chunk_idx})
             resp.raise_for_status()
-            print(f"[produce_stops]   chunk {i//CHUNK + 1}: {resp.json()}")
+            print(f"[produce_stops]   chunk {chunk_idx}: {resp.json()}")
 
     print(f"[produce_stops] ✓ Done — {total} stops ingested")
 

@@ -30,4 +30,4 @@ select
     created_at,
     updated_at
 
-from {{ source('staging', 'stg_stops') }}
+from {{ source('raw', 'stg_stops') }}

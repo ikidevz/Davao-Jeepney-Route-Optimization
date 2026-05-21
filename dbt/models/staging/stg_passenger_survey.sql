@@ -59,4 +59,4 @@ select
     created_at,
     updated_at
 
-from {{ source('staging', 'stg_passenger_survey') }}
+from {{ source('raw', 'stg_passenger_survey') }}

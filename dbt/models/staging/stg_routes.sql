@@ -31,7 +31,7 @@ select
     created_at,
     updated_at
 
-from {{ source('staging', 'stg_routes') }}
+from {{ source('raw', 'stg_routes') }}
 
 -- NOTE: No active-only filter here. Staging models must expose ALL rows
 -- so FK tests on stg_stops, stg_vehicles, and stg_trips pass for historical data.

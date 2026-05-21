@@ -30,28 +30,28 @@ END $$;
 -- -----------------------------------------------------------------------------
 
 CREATE INDEX IF NOT EXISTS idx_stg_trips_route_date
-  ON staging.stg_trips (route_id, trip_date);
-COMMENT ON INDEX staging.idx_stg_trips_route_date IS
+  ON raw.stg_trips (route_id, trip_date);
+COMMENT ON INDEX raw.idx_stg_trips_route_date IS
   'Supports dbt mart_route_summary aggregation and Superset route+date filters.';
 
 CREATE INDEX IF NOT EXISTS idx_stg_trips_vehicle_date
-  ON staging.stg_trips (vehicle_id, trip_date);
-COMMENT ON INDEX staging.idx_stg_trips_vehicle_date IS
+  ON raw.stg_trips (vehicle_id, trip_date);
+COMMENT ON INDEX raw.idx_stg_trips_vehicle_date IS
   'Supports vehicle utilization queries.';
 
 CREATE INDEX IF NOT EXISTS idx_stg_trips_date
-  ON staging.stg_trips (trip_date);
-COMMENT ON INDEX staging.idx_stg_trips_date IS
+  ON raw.stg_trips (trip_date);
+COMMENT ON INDEX raw.idx_stg_trips_date IS
   'Supports date range filters in Superset dashboards.';
 
 CREATE INDEX IF NOT EXISTS idx_stg_trips_time_period
-  ON staging.stg_trips (time_period);
-COMMENT ON INDEX staging.idx_stg_trips_time_period IS
+  ON raw.stg_trips (time_period);
+COMMENT ON INDEX raw.idx_stg_trips_time_period IS
   'Supports peak vs off-peak breakdowns in Superset heatmaps.';
 
 CREATE INDEX IF NOT EXISTS idx_stg_trips_rainy
-  ON staging.stg_trips (is_rainy_day, trip_date);
-COMMENT ON INDEX staging.idx_stg_trips_rainy IS
+  ON raw.stg_trips (is_rainy_day, trip_date);
+COMMENT ON INDEX raw.idx_stg_trips_rainy IS
   'Supports rain impact analysis charts in Dashboard 1.';
 
 -- -----------------------------------------------------------------------------
@@ -59,18 +59,18 @@ COMMENT ON INDEX staging.idx_stg_trips_rainy IS
 -- -----------------------------------------------------------------------------
 
 CREATE INDEX IF NOT EXISTS idx_stg_survey_district
-  ON staging.stg_passenger_survey (origin_district);
-COMMENT ON INDEX staging.idx_stg_survey_district IS
+  ON raw.stg_passenger_survey (origin_district);
+COMMENT ON INDEX raw.idx_stg_survey_district IS
   'Supports district-level aggregation in mart_district_ridership.';
 
 CREATE INDEX IF NOT EXISTS idx_stg_survey_cluster
-  ON staging.stg_passenger_survey (cluster_id);
-COMMENT ON INDEX staging.idx_stg_survey_cluster IS
+  ON raw.stg_passenger_survey (cluster_id);
+COMMENT ON INDEX raw.idx_stg_survey_cluster IS
   'Supports fast lookup of cluster members after clustering.py writes labels.';
 
 CREATE INDEX IF NOT EXISTS idx_stg_survey_satisfaction
-  ON staging.stg_passenger_survey (satisfaction_score, cluster_id);
-COMMENT ON INDEX staging.idx_stg_survey_satisfaction IS
+  ON raw.stg_passenger_survey (satisfaction_score, cluster_id);
+COMMENT ON INDEX raw.idx_stg_survey_satisfaction IS
   'Supports identifying worst-served cluster (lowest avg satisfaction).';
 
 -- -----------------------------------------------------------------------------
@@ -78,13 +78,13 @@ COMMENT ON INDEX staging.idx_stg_survey_satisfaction IS
 -- -----------------------------------------------------------------------------
 
 CREATE INDEX IF NOT EXISTS idx_stg_ab_group_week
-  ON staging.stg_ab_experiment ("group", test_week);
-COMMENT ON INDEX staging.idx_stg_ab_group_week IS
+  ON raw.stg_ab_experiment ("group", test_week);
+COMMENT ON INDEX raw.idx_stg_ab_group_week IS
   'Supports weekly control vs treatment breakdowns in ab_testing.py.';
 
 CREATE INDEX IF NOT EXISTS idx_stg_ab_passenger
-  ON staging.stg_ab_experiment (passenger_id);
-COMMENT ON INDEX staging.idx_stg_ab_passenger IS
+  ON raw.stg_ab_experiment (passenger_id);
+COMMENT ON INDEX raw.idx_stg_ab_passenger IS
   'Supports FK join to stg_passenger_survey in dbt mart_ab_test_results.';
 
 -- -----------------------------------------------------------------------------

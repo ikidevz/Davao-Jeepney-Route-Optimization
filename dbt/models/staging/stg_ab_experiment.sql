@@ -34,4 +34,4 @@ select
     created_at,
     updated_at
 
-from {{ source('staging', 'stg_ab_experiment') }}
+from {{ source('raw', 'stg_ab_experiment') }}

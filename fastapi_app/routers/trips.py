@@ -22,9 +22,11 @@ router = APIRouter(prefix="/ingest", tags=["Trips"])
 def ingest_trips(
     payload: list[TripPayload],
     partition_date: date = Query(default=None),
+    chunk_index: int = Query(default=None),
 ) -> IngestResponse:
     if not payload:
-        raise HTTPException(status_code=422, detail="Payload must contain at least one record.")
+        raise HTTPException(
+            status_code=422, detail="Payload must contain at least one record.")
 
     # Serialize date and time to ISO strings for PyArrow compatibility
     records = []
@@ -36,9 +38,11 @@ def ingest_trips(
         records.append(rec)
 
     try:
-        s3_path = write_parquet(records, entity="trips", partition_date=partition_date)
+        s3_path = write_parquet(
+            records, entity="trips", partition_date=partition_date, chunk_index=chunk_index)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"MinIO write failed: {exc}")
+        raise HTTPException(
+            status_code=500, detail=f"MinIO write failed: {exc}")
 
     return IngestResponse(
         status="success",

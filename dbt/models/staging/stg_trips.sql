@@ -56,4 +56,4 @@ select
 
     created_at
 
-from {{ source('staging', 'stg_trips') }}
+from {{ source('raw', 'stg_trips') }}

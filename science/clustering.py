@@ -248,7 +248,7 @@ def update_postgres_cluster_labels(df: pd.DataFrame, labels: np.ndarray, conn) -
         for i in range(len(labels))
     ]
     update_sql = """
-        UPDATE staging.stg_passenger_survey
+        UPDATE raw.stg_passenger_survey
         SET cluster_id    = %s,
             cluster_label = %s
         WHERE passenger_id = %s

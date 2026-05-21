@@ -38,12 +38,14 @@ def write_parquet(
     records: list[dict],
     entity: str,
     partition_date: date | None = None,
+    chunk_index: int | None = None,
 ) -> str:
     if not records:
         raise ValueError(f"No records to write for entity '{entity}'.")
 
     run_date = partition_date or date.today()
-    s3_key = f"jeepney/{entity}/date={run_date.isoformat()}/{entity}.parquet"
+    suffix = f"_{chunk_index:05d}" if chunk_index is not None else ""
+    s3_key = f"jeepney/{entity}/date={run_date.isoformat()}/{entity}{suffix}.parquet"
 
     try:
         table = pa.Table.from_pylist(records)

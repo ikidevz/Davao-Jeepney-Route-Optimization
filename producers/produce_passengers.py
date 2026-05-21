@@ -279,10 +279,12 @@ def main():
     with httpx.Client(timeout=60) as client:
         for i in range(0, total, CHUNK_SIZE):
             batch = passengers[i: i + CHUNK_SIZE]
-            resp = client.post(ENDPOINT, json=batch, timeout=60)
+            chunk_idx = i // CHUNK_SIZE + 1
+            resp = client.post(ENDPOINT, json=batch, params={
+                               "chunk_index": chunk_idx}, timeout=60)
             resp.raise_for_status()
             print(
-                f"[produce_passengers]   chunk {i//CHUNK_SIZE + 1}: {resp.json()}")
+                f"[produce_passengers]   chunk {chunk_idx}: {resp.json()}")
 
     print(f"[produce_passengers] ✓ Done — {total:,} records ingested")
 

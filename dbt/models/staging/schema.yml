@@ -11,11 +11,11 @@ version: 2
 sources:
   - name: staging
     database: jeepney_dw
-    schema: staging
+    schema: raw
     description: >
-      Silver layer. Raw Parquet files from MinIO loaded into PostgreSQL by
-      ingest_to_postgres.py. Tables are cleaned and typed but contain no
-      business logic. Bronze lives in MinIO s3://raw/jeepney/*.
+      Source tables written by ingest_to_postgres.py from MinIO Parquet.
+      Live in the raw schema to avoid name collision with dbt-managed views
+      in the staging schema. Bronze lives in MinIO s3://raw/jeepney/*.
 
     tables:
       - name: stg_routes
