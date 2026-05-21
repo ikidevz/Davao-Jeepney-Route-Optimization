@@ -8,24 +8,12 @@ jeepney_dw:
       host: postgres
       port: 5432
       dbname: "{{ env_var('DB_NAME', 'jeepney_dw') }}"
-      user: "{{ env_var('DB_USER', 'svc_pipeline') }}"
-      password: "{{ env_var('DB_PASS', 'pipeline_pass_123') }}"
-      schema: staging
-      threads: 4
-      connect_timeout: 30
-      keepalives_idle: 0
-
-    # ── CI / GitHub Actions ───────────────────────────────
-    ci:
-      type: postgres
-      host: "{{ env_var('DB_HOST') }}"
-      port: "{{ env_var('DB_PORT', '5432') | int }}"
-      dbname: "{{ env_var('DB_NAME') }}"
-      user: "{{ env_var('DB_USER') }}"
-      password: "{{ env_var('DB_PASS') }}"
+      user: "{{ env_var('SVC_PIPELINE_USER', 'svc_pipeline') }}"
+      password: "{{ env_var('SVC_PIPELINE_PASSWORD', 'pipeline_pass_123') }}"
       schema: staging
       threads: 2
       connect_timeout: 30
+      keepalives_idle: 0
 
     # ── Production ────────────────────────────────────────
     prod:
@@ -33,9 +21,9 @@ jeepney_dw:
       host: "{{ env_var('DB_HOST') }}"
       port: "{{ env_var('DB_PORT', '5432') | int }}"
       dbname: "{{ env_var('DB_NAME') }}"
-      user: "{{ env_var('DB_USER') }}"
-      password: "{{ env_var('DB_PASS') }}"
+      user: "{{ env_var('SVC_PIPELINE_USER', 'svc_pipeline') }}"
+      password: "{{ env_var('SVC_PIPELINE_PASSWORD', 'pipeline_pass_123') }}"
       schema: staging
-      threads: 8
+      threads: 2
       connect_timeout: 60
       keepalives_idle: 300
