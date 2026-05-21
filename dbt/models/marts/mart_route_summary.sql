@@ -19,7 +19,7 @@
   config(
     materialized = 'table',
     schema       = 'marts',
-    tags         = ['gold', 'marts', 'dashboard_1'],
+    tags = ["gold", "marts", "dashboard_1"],
     post_hook    = "comment on table {{ this }} is 'Gold: daily route performance KPIs. Grain: one row per route per day. Built by dbt. Refreshed: ' || now()::text"
   )
 }}

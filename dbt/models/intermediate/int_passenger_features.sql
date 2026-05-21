@@ -17,9 +17,9 @@
 
 {{
   config(
-    materialized = 'table',   -- TABLE so science/clustering.py can SELECT directly
-    schema       = 'staging', -- Written to staging schema — admin-only, not exposed to svc_bi
-    tags         = ['intermediate', 'ml_feature_store']
+    materialized = 'table', 
+    schema       = 'staging',
+    tags = ["intermediate", "ml_feature_store"]
   )
 }}
 
@@ -30,9 +30,7 @@ with survey as (
 ),
 
 routes as (
-
     select * from {{ ref('stg_routes') }}
-
 ),
 
 encoded as (

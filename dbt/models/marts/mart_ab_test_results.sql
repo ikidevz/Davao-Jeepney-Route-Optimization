@@ -24,19 +24,16 @@
   config(
     materialized = 'table',
     schema       = 'marts',
-    tags         = ['gold', 'marts', 'dashboard_3', 'ab_test'],
+    tags = ["gold", "marts", "dashboard_3", "ab_test"],
     post_hook    = "comment on table {{ this }} is 'Gold: A/B test results for Cluster 3 (Underserved Riders). Statistical columns NULL until ab_testing.py runs. Built by dbt. Refreshed: ' || now()::text"
   )
 }}
 
 with ab_exp as (
-
     select * from {{ ref('stg_ab_experiment') }}
-
 ),
 
 clusters as (
-
     select
         passenger_id,
         cluster_id,
@@ -49,12 +46,10 @@ clusters as (
         underserved_severity_score
 
     from {{ ref('mart_commuter_clusters') }}
-    where cluster_id = 3   -- only Underserved Riders are in the A/B test
-
+    where cluster_id = 3 
 ),
 
 joined as (
-
     select
         ab.experiment_record_id,
         ab.experiment_id,
@@ -80,12 +75,6 @@ joined as (
         ab.transfers_needed,
         ab.satisfaction_score,
         ab.would_use_again,
-
-        -- ── Statistical result columns ─────────────────────────────────────────
-        -- science/ab_testing.py writes these back to staging.stg_ab_experiment
-        -- via ALTER TABLE + UPDATE after running the t-test / chi-square / Cohen d.
-        -- stg_ab_experiment model passes them through as-is.
-        -- They are NULL on first dbt run (before ab_testing.py executes).
         ab.p_value,
         ab.is_significant,
         ab.effect_size,
@@ -93,14 +82,10 @@ joined as (
         ab.confidence_interval_high
 
     from ab_exp             as ab
-    -- INNER JOIN: only passengers who are in the cluster mart (i.e. clustering ran).
-    -- Before clustering runs mart_commuter_clusters is empty, so this mart is also empty.
-    -- This is correct — you cannot have A/B results without cluster assignments.
     inner join clusters     as c
         on ab.passenger_id = c.passenger_id
 
 )
-
 select
     -- ── Identity ────────────────────────────────────────────────────────────
     experiment_record_id,
@@ -126,7 +111,6 @@ select
     would_use_again,
 
     -- ── Derived convenience metrics ──────────────────────────────────────────
-    -- Time saving vs control baseline (~55 min per BLUEPRINT §7)
     case
         when is_treatment = true
         then 55 - simulated_travel_time_min

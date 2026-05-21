@@ -27,7 +27,7 @@
   config(
     materialized = 'view',
     schema       = 'staging',
-    tags         = ['silver', 'staging', 'fact']
+    tags = ["silver", "staging", "fact"]
   )
 }}
 

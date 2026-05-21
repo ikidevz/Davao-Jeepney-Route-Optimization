@@ -17,33 +17,23 @@
   config(
     materialized = 'table',
     schema       = 'marts',
-    tags         = ['gold', 'marts', 'dashboard_2'],
+    tags = ["gold", "marts", "dashboard_2"],
     post_hook    = "comment on table {{ this }} is 'Gold: daily ridership and service quality by district. Grain: one row per district per day. Built by dbt. Refreshed: ' || now()::text"
   )
 }}
 
 with daily_ridership as (
-
     select * from {{ ref('int_daily_ridership') }}
-
 ),
-
 stops as (
-
     select * from {{ ref('stg_stops') }}
-
 ),
-
 survey as (
-
     select * from {{ ref('stg_passenger_survey') }}
-
 ),
 
--- ── Stop infrastructure per district ────────────────────────────────────────
--- Static: shelter coverage doesn't change daily, so we compute once
-district_stops as (
 
+district_stops as (
     select
         district,
         count(stop_id)                                              as total_stops,
@@ -56,12 +46,10 @@ district_stops as (
 
     from stops
     group by district
-
 ),
 
 -- ── Survey aggregates per district ──────────────────────────────────────────
--- Not date-partitioned: survey is a point-in-time snapshot.
--- avg_wait_time_min and avg_satisfaction are broadcast to all dates for that district.
+
 district_survey as (
 
     select
@@ -70,18 +58,12 @@ district_survey as (
         round(avg(satisfaction_score)::numeric, 2)                 as avg_satisfaction
 
     from survey
-    -- No cluster_id filter: wait_time_min and satisfaction_score exist at load time.
-    -- These survey fields are populated during ingestion — not dependent on clustering.
-    -- NULL avg_satisfaction only occurs for districts with zero survey respondents.
-    group by origin_district
 
+    group by origin_district
 ),
 
 -- ── Trip-level boardings rolled up to district × day ────────────────────────
--- stg_trips doesn't have district directly — we route through int_daily_ridership
--- which carries district_covered from stg_routes.
 district_daily as (
-
     select
         district_covered                                            as district,
         trip_date,
@@ -97,11 +79,7 @@ district_daily as (
         district_covered,
         trip_date,
         is_rainy_day
-
 ),
-
--- ── Peak and weekend boardings require trip-level data ──────────────────────
--- Re-aggregate stg_trips at district level for finer time splits.
 district_time_splits as (
 
     select

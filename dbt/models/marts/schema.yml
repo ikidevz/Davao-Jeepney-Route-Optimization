@@ -10,7 +10,6 @@ version: 2
 # =============================================================================
 
 models:
-
   # ---------------------------------------------------------------------------
   # mart_route_summary
   # ---------------------------------------------------------------------------
@@ -59,15 +58,17 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1.5
+              arguments:
+                min_value: 0
+                max_value: 1.5
       - name: on_time_rate
         description: "on_time_trips / total_trips. LTFRB target >= 0.80."
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1.0
+              arguments:
+                min_value: 0
+                max_value: 1.0
 
   # ---------------------------------------------------------------------------
   # mart_district_ridership
@@ -102,15 +103,18 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1.0
+              arguments:
+                min_value: 0
+                max_value: 1.0
       - name: avg_satisfaction
         description: "From passenger survey. NULL for districts with no respondents."
         tests:
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 5
-              where: "avg_satisfaction IS NOT NULL"
+              arguments:
+                min_value: 1
+                max_value: 5
+              config:
+                where: "avg_satisfaction IS NOT NULL"
 
   # ---------------------------------------------------------------------------
   # mart_commuter_clusters
@@ -151,8 +155,9 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 5
+              arguments:
+                min_value: 1
+                max_value: 5
       - name: is_ab_test_eligible
         description: "TRUE only for cluster_id = 3 (Underserved Riders)."
         tests:
@@ -198,15 +203,17 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 8
+              arguments:
+                min_value: 1
+                max_value: 8
       - name: satisfaction_score
         description: "Post-trip satisfaction 1–5."
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 5
+              arguments:
+                min_value: 1
+                max_value: 5
       - name: p_value
         description: >
           Two-sample t-test p-value on satisfaction_score.
@@ -214,6 +221,8 @@ models:
           Significant if < 0.05.
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1.0
-              where: "p_value IS NOT NULL"
+              arguments:
+                min_value: 0
+                max_value: 1.0
+              config:
+                where: "p_value IS NOT NULL"

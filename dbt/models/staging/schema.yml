@@ -312,8 +312,9 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1.5
+              arguments:
+                min_value: 0
+                max_value: 1.5
       - name: is_on_time
         description: "TRUE when delay_min <= 5."
         tests:
@@ -366,8 +367,9 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 5
+              arguments:
+                min_value: 1
+                max_value: 5
       - name: income_bracket
         description: "low | middle | high."
         tests:
@@ -379,8 +381,9 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 3
+              arguments:
+                min_value: 0
+                max_value: 3
       - name: cluster_id
         description: >
           NULL at load time. Values 0–4 written by science/clustering.py.
@@ -388,9 +391,11 @@ models:
           3=Underserved Riders, 4=Occasional Riders.
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 4
-              where: "cluster_id IS NOT NULL"
+              arguments:
+                min_value: 0
+                max_value: 4
+                config:
+                  where: "cluster_id IS NOT NULL"
 
   # ---------------------------------------------------------------------------
   # stg_ab_experiment
@@ -437,15 +442,17 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 8
+              arguments:
+                min_value: 1
+                max_value: 8
       - name: satisfaction_score
         description: "Post-trip satisfaction 1–5."
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 1
-              max_value: 5
+              arguments:
+                min_value: 1
+                max_value: 5
       - name: would_use_again
         description: "Boolean retention indicator."
         tests:

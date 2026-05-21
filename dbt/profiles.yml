@@ -2,16 +2,15 @@ jeepney_dw:
   target: dev
 
   outputs:
-
     # ── Local Docker Compose development ──────────────────
     dev:
       type: postgres
-      host: "{{ env_var('JEEPNEY_PG_HOST', 'localhost') }}"
+      host: postgres
       port: 5432
-      dbname: jeepney_dw
-      user: svc_pipeline
-      password: "{{ env_var('JEEPNEY_PG_PASSWORD', 'pipeline_pass') }}"
-      schema: staging        # default write schema — overridden per layer in dbt_project.yml
+      dbname: "{{ env_var('DB_NAME', 'jeepney_dw') }}"
+      user: "{{ env_var('DB_USER', 'svc_pipeline') }}"
+      password: "{{ env_var('DB_PASS', 'pipeline_pass_123') }}"
+      schema: staging
       threads: 4
       connect_timeout: 30
       keepalives_idle: 0
@@ -19,11 +18,11 @@ jeepney_dw:
     # ── CI / GitHub Actions ───────────────────────────────
     ci:
       type: postgres
-      host: "{{ env_var('JEEPNEY_PG_HOST') }}"
-      port: 5432
-      dbname: jeepney_dw
-      user: svc_pipeline
-      password: "{{ env_var('JEEPNEY_PG_PASSWORD') }}"
+      host: "{{ env_var('DB_HOST') }}"
+      port: "{{ env_var('DB_PORT', '5432') | int }}"
+      dbname: "{{ env_var('DB_NAME') }}"
+      user: "{{ env_var('DB_USER') }}"
+      password: "{{ env_var('DB_PASS') }}"
       schema: staging
       threads: 2
       connect_timeout: 30
@@ -31,11 +30,11 @@ jeepney_dw:
     # ── Production ────────────────────────────────────────
     prod:
       type: postgres
-      host: "{{ env_var('JEEPNEY_PG_HOST') }}"
-      port: 5432
-      dbname: jeepney_dw
-      user: svc_pipeline
-      password: "{{ env_var('JEEPNEY_PG_PASSWORD') }}"
+      host: "{{ env_var('DB_HOST') }}"
+      port: "{{ env_var('DB_PORT', '5432') | int }}"
+      dbname: "{{ env_var('DB_NAME') }}"
+      user: "{{ env_var('DB_USER') }}"
+      password: "{{ env_var('DB_PASS') }}"
       schema: staging
       threads: 8
       connect_timeout: 60

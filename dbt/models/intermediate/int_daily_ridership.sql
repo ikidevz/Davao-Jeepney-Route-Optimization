@@ -11,7 +11,7 @@
 {{
   config(
     materialized = 'ephemeral',
-    tags         = ['intermediate']
+    tags = ["intermediate"]
   )
 }}
 
@@ -76,10 +76,7 @@ select
     d.total_revenue_php,
 
     -- Revenue efficiency KPI
-    round(
-        d.total_revenue_php / nullif(r.route_length_km, 0),
-        2
-    )                                                            as revenue_per_km_php,
+    round(d.total_revenue_php / nullif(r.route_length_km, 0),2) as revenue_per_km_php,
 
     d.avg_load_factor,
     d.avg_travel_time_min,

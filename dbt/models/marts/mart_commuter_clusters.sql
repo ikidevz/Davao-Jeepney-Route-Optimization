@@ -22,7 +22,7 @@
   config(
     materialized = 'table',
     schema       = 'marts',
-    tags         = ['gold', 'marts', 'dashboard_2', 'ml_output'],
+    tags = ["gold", "marts", "dashboard_2", "ml_output"],
     post_hook    = "comment on table {{ this }} is 'Gold: 5,000 passengers with K-Means cluster assignments. Empty until clustering.py + dbt mart run. Built by dbt. Refreshed: ' || now()::text"
   )
 }}

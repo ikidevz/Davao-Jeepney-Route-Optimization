@@ -14,39 +14,27 @@
 {{
   config(
     materialized = 'ephemeral',
-    tags         = ['intermediate']
+    tags = ["intermediate"]
   )
 }}
 
 with trips as (
-
     select * from {{ ref('stg_trips') }}
-
 ),
 
 routes as (
-
     select * from {{ ref('stg_routes') }}
-
 ),
 
 vehicles as (
-
     select * from {{ ref('stg_vehicles') }}
-
 ),
 
 operators as (
-
     select * from {{ ref('stg_operators') }}
-
 ),
 
--- ── Per-vehicle daily fuel cost ──────────────────────────────────────────────
--- Collapse to vehicle × route × day grain before joining to trips.
--- This prevents multiplying avg_fuel_cost_daily_php by trip count.
 vehicle_daily_cost as (
-
     select
         t.vehicle_id,
         t.route_id,
@@ -61,12 +49,9 @@ vehicle_daily_cost as (
         t.route_id,
         t.trip_date,
         v.avg_fuel_cost_daily_php
-
 ),
 
--- ── Route × day fuel cost total ──────────────────────────────────────────────
 route_fuel_cost as (
-
     select
         route_id,
         trip_date,
@@ -76,12 +61,10 @@ route_fuel_cost as (
     group by
         route_id,
         trip_date
-
 ),
 
 -- ── Enrich each trip with vehicle and operator attributes ────────────────────
 trip_enriched as (
-
     select
         t.trip_id,
         t.route_id,
@@ -119,12 +102,10 @@ trip_enriched as (
         on t.vehicle_id = v.vehicle_id
     left join operators    as o
         on v.operator_id = o.operator_id
-
 ),
 
 -- ── Aggregate to route × day grain ──────────────────────────────────────────
 route_daily as (
-
     select
         route_id,
         trip_date,
@@ -182,7 +163,6 @@ route_daily as (
         route_id,
         trip_date,
         is_rainy_day
-
 )
 
 -- ── Final: join route dimension + correct fuel cost ──────────────────────────
@@ -220,8 +200,6 @@ select
     rd.avg_fleet_age_years,
     rd.electric_vehicles,
     rd.pct_compliant_operators,
-
-    -- Correct fuel cost: one cost entry per vehicle per day, not per trip
     coalesce(rfc.total_fuel_cost_php, 0)                            as total_fuel_cost_php
 
 from route_daily          as rd

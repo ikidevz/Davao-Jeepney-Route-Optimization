@@ -24,6 +24,7 @@ clean-targets: ["target", "dbt_packages"]
 # ──────────────────────────────────────────────────────────
 models:
   jeepney_dw:
+    # ── Silver / Staging ──────────────────────────────────
     staging:
       +materialized: view
       +schema: staging
@@ -39,19 +40,3 @@ models:
       +materialized: table
       +schema: marts
       +tags: ["gold", "marts"]
-
-# ──────────────────────────────────────────────────────────
-# Seed defaults (reference / lookup CSVs)
-# ──────────────────────────────────────────────────────────
-seeds:
-  jeepney_dw:
-    +schema: staging
-
-# ──────────────────────────────────────────────────────────
-# Snapshot defaults
-# ──────────────────────────────────────────────────────────
-snapshots:
-  jeepney_dw:
-    +target_schema: staging
-    +strategy: timestamp
-    +updated_at: updated_at
