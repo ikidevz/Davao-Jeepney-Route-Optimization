@@ -177,9 +177,9 @@ GRANT ALL    ON ALL SEQUENCES IN SCHEMA marts   TO jeepney_admin;
 
 
 -- =============================================================================
--- staging_views
-GRANT ALL    ON ALL TABLES IN SCHEMA staging_views TO jeepney_admin;
-GRANT SELECT ON ALL TABLES IN SCHEMA staging_views TO jeepney_reader;
+-- staging
+GRANT ALL    ON ALL TABLES IN SCHEMA staging TO jeepney_admin;
+GRANT SELECT ON ALL TABLES IN SCHEMA staging TO jeepney_reader;
 
 -- intermediate
 GRANT ALL    ON ALL TABLES    IN SCHEMA intermediate TO jeepney_admin;

@@ -19,12 +19,12 @@ models:
     # -------------------------------------------------------------------------
     # STAGING — Silver layer
     # Source tables live in staging schema (created by init scripts).
-    # dbt views land in staging_views to avoid name collision with source tables.
+    # dbt views land in staging to avoid name collision with source tables.
     # threads: 1 in profiles.yml serialises execution — no FK deadlock possible.
     # -------------------------------------------------------------------------
     staging:
       +materialized: view
-      +schema: staging_views
+      +schema: staging
       +tags:
         - silver
         - staging

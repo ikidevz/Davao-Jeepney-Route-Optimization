@@ -1,5 +1,4 @@
 """
-dag_03_dbt_transform.py
 ------------------------
 DAG 3 — Silver → Gold Transformation (staging + intermediate only)
 Schedule: Triggered after dag_02_ingestion
@@ -7,17 +6,17 @@ Schedule: Triggered after dag_02_ingestion
 
 from __future__ import annotations
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from airflow import DAG
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
 DEFAULT_ARGS = {
-    "owner":            "jeepney-pipeline",
-    "depends_on_past":  False,
+    "owner": "jeepney-pipeline",
+    "depends_on_past": False,
     "email_on_failure": False,
-    "email_on_retry":   False
+    "email_on_retry": False,
 }
 
 DBT_DIR = "/opt/airflow/dbt"
@@ -25,17 +24,16 @@ DBT_CMD = f"cd {DBT_DIR} && dbt"
 PROFILES_ARG = f"--profiles-dir {DBT_DIR}"
 
 DBT_ENV = {
-    "DB_HOST":              "postgres",
-    "DB_PORT":              "5432",
-    "DB_NAME":              "jeepney_dw",
-    "DB_USER":              os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
-    "DB_PASS":              os.environ.get("SVC_PIPELINE_PASSWORD", ""),
-    "PYTHONUNBUFFERED":     "1",
-    "SVC_PIPELINE_USER":     os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
+    "DB_HOST": "postgres",
+    "DB_PORT": "5432",
+    "DB_NAME": "jeepney_dw",
+    "DB_USER": os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
+    "DB_PASS": os.environ.get("SVC_PIPELINE_PASSWORD", ""),
+    "PYTHONUNBUFFERED": "1",
+    "SVC_PIPELINE_USER": os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
     "SVC_PIPELINE_PASSWORD": os.environ.get("SVC_PIPELINE_PASSWORD", ""),
     "PATH": f"/home/airflow/.local/bin:{os.environ.get('PATH', '')}",
 }
-# ============================================================
 
 with DAG(
     dag_id="dag_03_dbt_transform",
@@ -54,7 +52,7 @@ with DAG(
         env=DBT_ENV,
     )
 
-    # ── Staging (Silver) ─────────────────────────────────────────────────────
+    # Staging
     dbt_run_staging = BashOperator(
         task_id="dbt_run_staging",
         bash_command=f"{DBT_CMD} run --select staging {PROFILES_ARG}",
@@ -67,7 +65,7 @@ with DAG(
         env=DBT_ENV,
     )
 
-    # ── Intermediate ─────────────────────────────────────────────────────────
+    # Intermediate
     dbt_run_intermediate = BashOperator(
         task_id="dbt_run_intermediate",
         bash_command=f"{DBT_CMD} run --select intermediate {PROFILES_ARG}",
@@ -101,7 +99,6 @@ with DAG(
         env=DBT_ENV,
     )
 
-    # ── Trigger downstream science DAG ───────────────────────────────────────
     trigger_science = TriggerDagRunOperator(
         task_id="trigger_dag_04_science",
         trigger_dag_id="dag_04_science",
@@ -109,7 +106,7 @@ with DAG(
         reset_dag_run=True,
     )
 
-    # Task chain
+    # Task flow
     (
         dbt_deps
         >> dbt_run_staging

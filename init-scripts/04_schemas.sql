@@ -122,7 +122,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA intermediate
   GRANT SELECT ON TABLES    TO jeepney_reader;
 
 -- =============================================================================
--- STAGING_VIEWS SCHEMA
+-- staging SCHEMA
 -- dbt staging models (views) land here — separate from the staging source
 -- tables to avoid name collisions. dbt would otherwise try to swap a view
 -- named stg_routes over the existing stg_routes TABLE, causing deadlocks.
@@ -131,18 +131,18 @@ ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA intermediate
 --         reader can SELECT (for cross-schema joins from marts).
 -- =============================================================================
 
-CREATE SCHEMA IF NOT EXISTS staging_views AUTHORIZATION svc_pipeline;
+CREATE SCHEMA IF NOT EXISTS staging AUTHORIZATION svc_pipeline;
 
-COMMENT ON SCHEMA staging_views IS
+COMMENT ON SCHEMA staging IS
   'dbt-managed Silver views. Mirrors staging source tables as clean SELECT views. '
   'Kept separate from staging to prevent dbt view-swap deadlocks on source tables. '
   'Owner: svc_pipeline.';
 
-GRANT ALL   ON SCHEMA staging_views TO jeepney_admin;
-GRANT USAGE ON SCHEMA staging_views TO jeepney_reader;
-GRANT USAGE ON SCHEMA staging_views TO jeepney_writer;
+GRANT ALL   ON SCHEMA staging TO jeepney_admin;
+GRANT USAGE ON SCHEMA staging TO jeepney_reader;
+GRANT USAGE ON SCHEMA staging TO jeepney_writer;
 
-ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging_views
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
   GRANT ALL    ON TABLES TO jeepney_admin;
-ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging_views
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
   GRANT SELECT ON TABLES TO jeepney_reader;
