@@ -14,16 +14,52 @@ Records are crafted to naturally form 5 clusters when K-Means is later run:
 FK dependencies: routes (R01–R40) must exist.
 """
 
+import os
 import random
 from datetime import date, datetime, timedelta, timezone
 
+import boto3
 import httpx
 import numpy as np
+from botocore.config import Config
 
-API_BASE = "http://fastapi:8000"
+API_BASE = os.getenv("FASTAPI_URL", "http://fastapi:8000")
 ENDPOINT = f"{API_BASE}/ingest/passengers"
 CHUNK_SIZE = 500
 SEED = 42
+
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
+MINIO_ACCESS = os.getenv("MINIO_ACCESS_KEY", "minioLocalAccessKey")
+MINIO_SECRET = os.getenv("MINIO_SECRET_KEY", "minioLocalSecretKey123")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "raw")
+ENTITY = "passengers"
+
+
+def clear_minio_partition(partition_date: str | None = None) -> None:
+    """Delete all parquet files for this entity+date so re-runs don't accumulate stale chunks."""
+    run_date = partition_date or date.today().isoformat()
+    prefix = f"jeepney/{ENTITY}/date={run_date}/"
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=f"http://{MINIO_ENDPOINT}",
+        aws_access_key_id=MINIO_ACCESS,
+        aws_secret_access_key=MINIO_SECRET,
+        region_name="us-east-1",
+        config=Config(signature_version="s3v4"),
+    )
+    paginator = s3.get_paginator("list_objects_v2")
+    keys_deleted = 0
+    for page in paginator.paginate(Bucket=MINIO_BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            s3.delete_object(Bucket=MINIO_BUCKET, Key=obj["Key"])
+            keys_deleted += 1
+    if keys_deleted:
+        print(
+            f"[produce_passengers] 🗑  Cleared {keys_deleted} stale file(s) from s3://{MINIO_BUCKET}/{prefix}")
+    else:
+        print(
+            f"[produce_passengers] ✓ Partition s3://{MINIO_BUCKET}/{prefix} was already clean")
+
 
 rng = np.random.default_rng(SEED)
 random.seed(SEED)
@@ -228,8 +264,6 @@ def generate_passengers() -> list[dict]:
             })
             pax_num += 1
 
-    # Shuffle so clusters aren't sent in order
-    random.shuffle(records)
     return records
 
 
@@ -239,6 +273,8 @@ def main():
     print(
         f"[produce_passengers] Generating {total:,} passenger survey records")
     print(f"[produce_passengers] Endpoint: {ENDPOINT}  |  Chunk: {CHUNK_SIZE}")
+
+    clear_minio_partition()
 
     with httpx.Client(timeout=60) as client:
         for i in range(0, total, CHUNK_SIZE):

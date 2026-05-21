@@ -6,7 +6,6 @@ Schedule: Triggered after dag_02_ingestion
 """
 
 from __future__ import annotations
-
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -18,14 +17,10 @@ DEFAULT_ARGS = {
     "owner":            "jeepney-pipeline",
     "depends_on_past":  False,
     "email_on_failure": False,
-    "email_on_retry":   False,
-    "retries":          1,
-    "retry_delay":      timedelta(minutes=3),
+    "email_on_retry":   False
 }
 
 DBT_DIR = "/opt/airflow/dbt"
-
-# Fix 1: centralise dbt command prefix so --profiles-dir is never forgotten
 DBT_CMD = f"cd {DBT_DIR} && dbt"
 PROFILES_ARG = f"--profiles-dir {DBT_DIR}"
 
@@ -36,10 +31,11 @@ DBT_ENV = {
     "DB_USER":              os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
     "DB_PASS":              os.environ.get("SVC_PIPELINE_PASSWORD", ""),
     "PYTHONUNBUFFERED":     "1",
-    # Expose under the names the validate task reads from os.environ
     "SVC_PIPELINE_USER":     os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
     "SVC_PIPELINE_PASSWORD": os.environ.get("SVC_PIPELINE_PASSWORD", ""),
+    "PATH": f"/home/airflow/.local/bin:{os.environ.get('PATH', '')}",
 }
+# ============================================================
 
 with DAG(
     dag_id="dag_03_dbt_transform",
@@ -52,7 +48,6 @@ with DAG(
     tags=["jeepney", "dbt", "transform"],
 ) as dag:
 
-    # ── Install / refresh dbt packages ───────────────────────────────────────
     dbt_deps = BashOperator(
         task_id="dbt_deps",
         bash_command=f"{DBT_CMD} deps {PROFILES_ARG}",
@@ -84,6 +79,7 @@ with DAG(
         bash_command=f"{DBT_CMD} test --select intermediate {PROFILES_ARG}",
         env=DBT_ENV,
     )
+
     validate_int_passenger_features = BashOperator(
         task_id="validate_int_passenger_features",
         bash_command=(
@@ -102,7 +98,7 @@ with DAG(
             "conn.close()"
             "\""
         ),
-        env=DBT_ENV,  # Fix 2: was missing
+        env=DBT_ENV,
     )
 
     # ── Trigger downstream science DAG ───────────────────────────────────────
@@ -113,7 +109,7 @@ with DAG(
         reset_dag_run=True,
     )
 
-    # ── Task chain ───────────────────────────────────────────────────────────
+    # Task chain
     (
         dbt_deps
         >> dbt_run_staging

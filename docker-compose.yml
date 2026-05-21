@@ -157,18 +157,20 @@ services:
       minio:
         condition: service_healthy
     environment:
-      ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioLocalAccessKey}
-      SECRET_KEY: ${MINIO_SECRET_KEY:-minioLocalSecretKey123}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioLocalAccessKey}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioLocalSecretKey123}
     entrypoint:
       - /bin/sh
       - -c
       - |
-        until mc alias set local http://minio:9000 minio minio123; do
+        until mc alias set local http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD; do
           echo "Waiting for MinIO server..."
           sleep 3
         done
 
-        mc admin user svcacct add local minio --access-key $MINIO_ACCESS_KEY --secret-key $MINIO_SECRET_KEY || echo "Service account may already exist"
+        mc admin user svcacct add local $MINIO_ROOT_USER --access-key $MINIO_ACCESS_KEY --secret-key $MINIO_SECRET_KEY || echo "Service account may already exist"
 
         echo "✅ MinIO setup complete!"
         echo "🔑 Access Key: $MINIO_ACCESS_KEY"

@@ -11,16 +11,52 @@ FK dependencies:
   - passengers (PAX-XXXX) must exist first (produce_passengers.py).
 """
 
+import os
 import random
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
+import boto3
 import httpx
 import numpy as np
+from botocore.config import Config
 
 API_BASE = "http://fastapi:8000"
 ENDPOINT = f"{API_BASE}/ingest/ab-experiment"
 CHUNK_SIZE = 1_000
 SEED = 42
+
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
+MINIO_ACCESS = os.getenv("MINIO_ACCESS_KEY", "minioLocalAccessKey")
+MINIO_SECRET = os.getenv("MINIO_SECRET_KEY", "minioLocalSecretKey123")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "raw")
+ENTITY = "ab_experiment"
+
+
+def clear_minio_partition(partition_date: str | None = None) -> None:
+    """Delete all parquet files for this entity+date so re-runs don't accumulate stale chunks."""
+    run_date = partition_date or date.today().isoformat()
+    prefix = f"jeepney/{ENTITY}/date={run_date}/"
+    s3 = boto3.client(
+        "s3",
+        endpoint_url=f"http://{MINIO_ENDPOINT}",
+        aws_access_key_id=MINIO_ACCESS,
+        aws_secret_access_key=MINIO_SECRET,
+        region_name="us-east-1",
+        config=Config(signature_version="s3v4"),
+    )
+    paginator = s3.get_paginator("list_objects_v2")
+    keys_deleted = 0
+    for page in paginator.paginate(Bucket=MINIO_BUCKET, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            s3.delete_object(Bucket=MINIO_BUCKET, Key=obj["Key"])
+            keys_deleted += 1
+    if keys_deleted:
+        print(
+            f"[produce_ab_experiment] 🗑  Cleared {keys_deleted} stale file(s) from s3://{MINIO_BUCKET}/{prefix}")
+    else:
+        print(
+            f"[produce_ab_experiment] ✓ Partition s3://{MINIO_BUCKET}/{prefix} was already clean")
+
 
 rng = np.random.default_rng(SEED)
 random.seed(SEED)
@@ -46,12 +82,6 @@ CLUSTER_3_COUNT = CLUSTER_SIZES[3]   # 1,000
 
 
 def passenger_ids_cluster3() -> list:
-    """Return the 1,000 PAX IDs that map to Cluster 3 (Underserved Riders).
-
-    Stable because produce_passengers.py assigns PAX-NNNN sequentially
-    before shuffling — the shuffle reorders the list but not which
-    numbers belong to each cluster block.
-    """
     return [f"PAX-{i:04d}" for i in range(_C3_START, _C3_END + 1)]
 
 
@@ -165,8 +195,22 @@ def main():
     print(f"  Expected records     : {CLUSTER_3_COUNT * N_WEEKS:,}")
     print(f"  Endpoint             : {ENDPOINT}")
 
+    # Guard: verify the computed Cluster 3 ID range is self-consistent
+    # with CLUSTER_SIZES. If produce_passengers.py changes cluster counts
+    # this assertion will catch the mismatch before any records are posted.
+    expected_start = sum(CLUSTER_SIZES[c]
+                         for c in sorted(CLUSTER_SIZES) if c < 3) + 1
+    expected_end = expected_start + CLUSTER_SIZES[3] - 1
+    assert _C3_START == expected_start and _C3_END == expected_end, (
+        f"Cluster 3 PAX range mismatch: computed ({_C3_START}–{_C3_END}) "
+        f"vs expected ({expected_start}–{expected_end}). "
+        "Sync CLUSTER_SIZES with produce_passengers.py."
+    )
+
     records = generate_experiment_records()
     print_summary(records)
+
+    clear_minio_partition()
 
     print(
         f"\n[produce_ab_experiment] Posting {len(records):,} records in chunks of {CHUNK_SIZE}")

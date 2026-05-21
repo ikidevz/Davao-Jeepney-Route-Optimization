@@ -19,8 +19,6 @@ DEFAULT_ARGS = {
     "depends_on_past":  False,
     "email_on_failure": False,
     "email_on_retry":   False,
-    "retries":          1,
-    "retry_delay":      timedelta(minutes=5),
 }
 
 SCIENCE_DIR = "/opt/airflow/science"
@@ -31,6 +29,9 @@ SCIENCE_ENV = {
     "DB_USER":          os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
     "DB_PASS":          os.environ.get("SVC_PIPELINE_PASSWORD", ""),
     "PYTHONUNBUFFERED": "1",
+    "SVC_PIPELINE_USER":     os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
+    "SVC_PIPELINE_PASSWORD": os.environ.get("SVC_PIPELINE_PASSWORD", ""),
+
 }
 
 with DAG(

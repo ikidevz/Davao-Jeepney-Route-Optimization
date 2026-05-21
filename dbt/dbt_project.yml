@@ -24,7 +24,7 @@ clean-targets: ["target", "dbt_packages"]
 # ──────────────────────────────────────────────────────────
 models:
   jeepney_dw:
-    # ── Silver / Staging ──────────────────────────────────
+    staging:
       +materialized: view
       +schema: staging
       +tags: ["silver", "staging"]

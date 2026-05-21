@@ -7,6 +7,7 @@ Schedule: Triggered by dag_01_producers (TriggerDagRunOperator)
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 
 from airflow import DAG
@@ -17,9 +18,7 @@ DEFAULT_ARGS = {
     "owner":            "jeepney-pipeline",
     "depends_on_past":  False,
     "email_on_failure": False,
-    "email_on_retry":   False,
-    "retries":          2,
-    "retry_delay":      timedelta(minutes=5),
+    "email_on_retry":   False
 }
 
 with DAG(
@@ -37,26 +36,35 @@ with DAG(
         task_id="run_ingest_to_postgres",
         bash_command="python /opt/airflow/ingestion/ingest_to_postgres.py",
         env={
-            "DB_HOST":          "postgres",
-            "DB_PORT":          "5432",
-            "DB_NAME":          "jeepney_dw",
-            "DB_USER":          "{{ conn.postgres_default.login | default(env['SVC_PIPELINE_USER']) }}",
-            "DB_PASS":          "{{ conn.postgres_default.password | default(env['SVC_PIPELINE_PASSWORD']) }}",
-            "MINIO_ENDPOINT":   "minio:9000",
-            "MINIO_ACCESS_KEY": "{{ env['MINIO_ACCESS_KEY'] }}",
-            "MINIO_SECRET_KEY": "{{ env['MINIO_SECRET_KEY'] }}",
-            "MINIO_BUCKET":     "{{ env['MINIO_BUCKET'] }}",
+
+            "POSTGRES_HOST":         os.getenv("POSTGRES_HOST",         "postgres"),
+            "POSTGRES_PORT":         os.getenv("POSTGRES_PORT",         "5432"),
+            "POSTGRES_DB":           os.getenv("POSTGRES_DB",           "jeepney_dw"),
+            "SVC_PIPELINE_USER":     os.getenv("SVC_PIPELINE_USER",     "svc_pipeline"),
+            "SVC_PIPELINE_PASSWORD": os.getenv("SVC_PIPELINE_PASSWORD", "pipeline_pass_123"),
+
+
+            "MINIO_ENDPOINT":        os.getenv("MINIO_ENDPOINT",    "minio:9000"),
+            "MINIO_ACCESS_KEY":      os.getenv("MINIO_ACCESS_KEY"),
+            "MINIO_SECRET_KEY":      os.getenv("MINIO_SECRET_KEY"),
+            "MINIO_BUCKET":          os.getenv("MINIO_BUCKET",      "raw"),
+
             "PYTHONUNBUFFERED": "1",
         },
     )
 
+    # -------------------------------------------------------------------------
+    # Task 2 — Validate row counts in every staging table
+    # -------------------------------------------------------------------------
     validate_staging = BashOperator(
         task_id="validate_staging_row_counts",
         bash_command=(
             "python -c \""
             "import psycopg2, os; "
             "conn = psycopg2.connect("
-            "  host='postgres', dbname='jeepney_dw',"
+            "  host=os.environ['POSTGRES_HOST'],"
+            "  port=int(os.environ['POSTGRES_PORT']),"
+            "  dbname=os.environ['POSTGRES_DB'],"
             "  user=os.environ['SVC_PIPELINE_USER'],"
             "  password=os.environ['SVC_PIPELINE_PASSWORD']"
             "); "
@@ -68,8 +76,18 @@ with DAG(
             "conn.close()"
             "\""
         ),
+        env={
+            "POSTGRES_HOST":         os.getenv("POSTGRES_HOST",         "postgres"),
+            "POSTGRES_PORT":         os.getenv("POSTGRES_PORT",         "5432"),
+            "POSTGRES_DB":           os.getenv("POSTGRES_DB",           "jeepney_dw"),
+            "SVC_PIPELINE_USER":     os.getenv("SVC_PIPELINE_USER",     "svc_pipeline"),
+            "SVC_PIPELINE_PASSWORD": os.getenv("SVC_PIPELINE_PASSWORD", "pipeline_pass_123"),
+        },
     )
 
+    # -------------------------------------------------------------------------
+    # Task 3 — Trigger dbt transform DAG
+    # -------------------------------------------------------------------------
     trigger_dbt = TriggerDagRunOperator(
         task_id="trigger_dag_03_dbt_transform",
         trigger_dag_id="dag_03_dbt_transform",

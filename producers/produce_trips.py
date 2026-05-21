@@ -161,10 +161,15 @@ BASE_FARE_PHP = 13.00
 PER_KM_RATE = 1.50
 FREE_KM = 4.0
 
+ROUTE_BASE_FARE: dict[str, float] = {
+    "R11": 15.00,
+}
 
-def fare_for_route(length_km: float) -> float:
+
+def fare_for_route(route_id: str, length_km: float) -> float:
+    base = ROUTE_BASE_FARE.get(route_id, BASE_FARE_PHP)
     extra = max(0.0, length_km - FREE_KM)
-    return round(BASE_FARE_PHP + extra * PER_KM_RATE, 2)
+    return round(base + extra * PER_KM_RATE, 2)
 
 
 def random_time_in_period(period: str) -> time:
@@ -195,19 +200,6 @@ _ROUTE_RAIN_EXTRA_PROB = {r: 0.05 for r in REMOTE_ROUTES}
 
 
 def sample_route_rain(city_rainy_day: bool, route_id: str) -> bool:
-    """
-    Decide whether a specific route is experiencing rain.
-
-    - On a dry city day (city_rainy_day=False):  no route is rainy.
-      This preserves the physical reality that rain is a city-level weather
-      event; we do not invent rain on routes when the city is dry.
-    - On a rainy city day (city_rainy_day=True):  each route independently
-      draws from its own exposure probability.  Urban routes use the base
-      40% rate; remote/fringe routes use 45%.  This means ~40–45% of all
-      trips on a rainy day are actually rained-on, matching the documented
-      business rule, while eliminating the unrealistic 100% correlation
-      across all 40 routes.
-    """
     if not city_rainy_day:
         return False
     extra = _ROUTE_RAIN_EXTRA_PROB.get(route_id, 0.0)
@@ -299,7 +291,7 @@ def trip_generator():
         for route_id, meta in ROUTE_META.items():
             is_rainy = sample_route_rain(city_rainy_day, route_id)
 
-            max_fare = fare_for_route(meta["length_km"])
+            max_fare = fare_for_route(route_id, meta["length_km"])
             vehicles = meta["vehicles"]
             tpp = trips_per_period(route_id)
 

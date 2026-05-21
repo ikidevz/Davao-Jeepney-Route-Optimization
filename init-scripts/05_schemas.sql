@@ -2,11 +2,6 @@
 -- 05_schemas.sql
 -- Davao Jeepney Route Optimization — Data Lakehouse
 -- PURPOSE : Create schemas, assign ownership, apply grants and default privileges
--- RUN AS  : postgres superuser (needed for ALTER SCHEMA OWNER + DEFAULT PRIVILEGES)
--- ORDER   : Run AFTER 04_database.sql
--- NOTE    : Default privileges set here ensure any future table created by
---           svc_pipeline (via dbt or scripts) automatically inherits correct
---           permissions — no need to re-grant after every dbt run.
 -- =============================================================================
 
 
@@ -68,30 +63,29 @@ GRANT USAGE ON SCHEMA staging TO jeepney_reader;
 -- -----------------------------------------------------------------------------
 
 -- Tables in staging
-ALTER DEFAULT PRIVILEGES IN SCHEMA staging
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
   GRANT INSERT ON TABLES TO jeepney_writer;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA staging
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
   GRANT ALL ON TABLES TO jeepney_admin;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA staging
-  GRANT SELECT ON TABLES TO jeepney_reader;   -- so svc_bi can cross-reference if needed
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
+  GRANT SELECT ON TABLES TO jeepney_reader; 
 
 -- Tables in marts
-ALTER DEFAULT PRIVILEGES IN SCHEMA marts
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA marts
   GRANT SELECT ON TABLES TO jeepney_reader;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA marts
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA marts
   GRANT ALL ON TABLES TO jeepney_admin;
 
--- Sequences in staging and marts (needed for any serial/identity columns)
-ALTER DEFAULT PRIVILEGES IN SCHEMA staging
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
   GRANT USAGE, SELECT ON SEQUENCES TO jeepney_writer;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA staging
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
   GRANT ALL ON SEQUENCES TO jeepney_admin;
 
-ALTER DEFAULT PRIVILEGES IN SCHEMA marts
+ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA marts
   GRANT ALL ON SEQUENCES TO jeepney_admin;
 
 

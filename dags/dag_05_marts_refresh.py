@@ -6,7 +6,6 @@ Schedule: Triggered after dag_04_science
 """
 
 from __future__ import annotations
-
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -18,13 +17,11 @@ DEFAULT_ARGS = {
     "depends_on_past":  False,
     "email_on_failure": False,
     "email_on_retry":   False,
-    "retries":          1,
-    "retry_delay":      timedelta(minutes=3),
 }
 
 DBT_DIR = "/opt/airflow/dbt"
 DBT_CMD = f"cd {DBT_DIR} && dbt"
-PROFILES_ARG = f"--profiles-dir ."
+PROFILES_ARG = f"--profiles-dir {DBT_DIR}"
 
 DBT_ENV = {
     "DB_HOST":          "postgres",
@@ -33,6 +30,9 @@ DBT_ENV = {
     "DB_USER":          os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
     "DB_PASS":          os.environ.get("SVC_PIPELINE_PASSWORD", ""),
     "PYTHONUNBUFFERED": "1",
+    "SVC_PIPELINE_USER":     os.environ.get("SVC_PIPELINE_USER", "svc_pipeline"),
+    "SVC_PIPELINE_PASSWORD": os.environ.get("SVC_PIPELINE_PASSWORD", ""),
+    "PATH": f"/home/airflow/.local/bin:{os.environ.get('PATH', '')}",
 }
 
 with DAG(
@@ -65,13 +65,13 @@ with DAG(
         bash_command=f"{DBT_CMD} run --select marts {PROFILES_ARG}",
         env=DBT_ENV,
     )
+
     dbt_test_marts = BashOperator(
         task_id="dbt_test_marts",
         bash_command=f"{DBT_CMD} test --select marts {PROFILES_ARG}",
         env=DBT_ENV,
     )
 
-    # Validate final mart row counts using svc_pipeline creds from env
     validate_mart_counts = BashOperator(
         task_id="validate_mart_row_counts",
         bash_command=(
@@ -90,6 +90,7 @@ with DAG(
             "conn.close()"
             "\""
         ),
+        env=DBT_ENV,
     )
 
     validate_cluster_mart = BashOperator(
@@ -112,6 +113,7 @@ with DAG(
             "conn.close()"
             "\""
         ),
+        env=DBT_ENV,
     )
 
     validate_ab_mart = BashOperator(
@@ -135,6 +137,7 @@ with DAG(
             "conn.close()"
             "\""
         ),
+        env=DBT_ENV,
     )
 
     pipeline_complete = BashOperator(
