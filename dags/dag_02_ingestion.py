@@ -71,7 +71,7 @@ with DAG(
             "cur = conn.cursor(); "
             "tables = ['stg_routes','stg_stops','stg_vehicles','stg_operators',"
             "          'stg_trips','stg_passenger_survey','stg_ab_experiment']; "
-            "[cur.execute(f\\\"SELECT COUNT(*) FROM staging.{t}\\\") or "
+            "[cur.execute(f\\\"SELECT COUNT(*) FROM raw.{t}\\\") or "
             " print(f'{t}: {cur.fetchone()[0]:,} rows') for t in tables]; "
             "conn.close()"
             "\""

@@ -9,7 +9,7 @@ version: 2
 # =============================================================================
 
 sources:
-  - name: staging
+  - name: raw
     database: jeepney_dw
     schema: raw
     description: >

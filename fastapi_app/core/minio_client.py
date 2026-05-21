@@ -1,4 +1,5 @@
 import io
+import logging
 from datetime import date
 
 import boto3
@@ -8,6 +9,10 @@ from botocore.exceptions import ClientError
 from botocore.config import Config
 
 from core.config import settings
+
+log = logging.getLogger(__name__)
+
+_bucket_ensured: bool = False
 
 
 def get_client():
@@ -22,16 +27,20 @@ def get_client():
 
 
 def ensure_bucket(client) -> None:
+    global _bucket_ensured
+    if _bucket_ensured:
+        return
     bucket = settings.minio_bucket
     try:
         client.head_bucket(Bucket=bucket)
-        print(f"✅ Bucket '{bucket}' exists")
+        log.info("Bucket '%s' exists", bucket)
     except ClientError as e:
         if e.response['Error']['Code'] == '404':
-            print(f"Creating bucket '{bucket}'...")
+            log.info("Creating bucket '%s'...", bucket)
             client.create_bucket(Bucket=bucket)
         else:
             raise
+    _bucket_ensured = True
 
 
 def write_parquet(
@@ -59,7 +68,7 @@ def write_parquet(
         client.upload_fileobj(buffer, settings.minio_bucket, s3_key)
 
         full_path = f"s3://{settings.minio_bucket}/{s3_key}"
-        print(f"✅ Successfully wrote {len(records)} records to {full_path}")
+        log.info("Wrote %d records to %s", len(records), full_path)
         return full_path
 
     except ClientError as e:

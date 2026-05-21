@@ -26,5 +26,5 @@ select
     is_compliant_puv,
     created_at,
     updated_at
-
+ 
 from {{ source('raw', 'stg_operators') }}

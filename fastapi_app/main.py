@@ -1,14 +1,23 @@
+import logging
+
 from fastapi import FastAPI
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from core.config import settings
 from routers import routes, stops, operators, vehicles, trips, passengers, ab_experiment
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+)
 
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
+
     title="Davao Jeepney — Bronze Ingestion API",
     description=(
         "FastAPI service that acts as the Bronze layer entry point for the "
@@ -22,6 +31,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # ---------------------------------------------------------------------------
 # Routers — one per entity, in FK-safe order
@@ -38,6 +49,7 @@ app.include_router(ab_experiment.router)  # FK → passengers
 # ---------------------------------------------------------------------------
 # Health + info endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health", tags=["Health"], summary="API health check")
 def health():
