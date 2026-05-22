@@ -59,7 +59,7 @@ CLUSTER_LABELS = {
 }
 
 K_RANGE = range(2, 11)
-OPTIMAL_K = 5   # override after elbow/silhouette analysis; can also be auto-selected
+OPTIMAL_K = 5
 RANDOM_STATE = 42
 
 

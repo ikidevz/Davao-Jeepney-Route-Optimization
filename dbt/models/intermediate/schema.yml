@@ -209,3 +209,9 @@ models:
         description: "Flag for A/B test eligibility."
       - name: is_likely_underserved
         description: "Flag indicating likely underserved passenger."
+      - name: underserved_severity_score
+        description: >
+          Composite severity score representing how underserved a passenger is
+          based on wait time, transfer burden, and satisfaction level.
+          Higher scores indicate commuters experiencing longer waits,
+          more transfers, and lower satisfaction with current jeepney routes.

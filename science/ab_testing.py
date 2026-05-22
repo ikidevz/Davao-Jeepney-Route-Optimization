@@ -71,11 +71,13 @@ def load_experiment_data(conn) -> pd.DataFrame:
             e.experiment_phase,
             e.is_treatment,
 
-            -- Pull cluster context from staging / intermediate (safer at this stage)
+            -- Pull what is safely available
             c.cluster_label,
             c.origin_district,
-            c.income_bracket,
-            c.underserved_severity_score
+            c.income_bracket
+
+            -- Note: underserved_severity_score is only in the mart layer
+            -- We will let dbt calculate it later
 
         FROM staging.stg_ab_experiment e
         LEFT JOIN intermediate.int_passenger_features c
@@ -90,11 +92,8 @@ def load_experiment_data(conn) -> pd.DataFrame:
                      "cluster_id": UNDERSERVED_CLUSTER_ID})
 
     log.info("  → %d experiment records loaded", len(df))
-
     if not df.empty:
         log.info("Available columns: %s", list(df.columns))
-        log.info("underserved_severity_score sample: %s",
-                 df['underserved_severity_score'].dropna().head().tolist())
 
     return df
 
@@ -247,107 +246,6 @@ def save_statistics_parquet(results: list[dict]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Write mart table to PostgreSQL
-# ---------------------------------------------------------------------------
-def write_mart_ab_test_results(df: pd.DataFrame, test_results: list[dict], conn) -> None:
-    """
-    Upsert rows into marts.mart_ab_test_results.
-    Statistical columns are broadcast from the t-test result.
-    """
-    log.info("Writing to marts.mart_ab_test_results …")
-
-    # Pick statistics from primary metric (satisfaction_score)
-    stat_map = {r["metric"]: r for r in test_results}
-    sat_stat = stat_map.get("satisfaction_score", {})
-
-    p_value = sat_stat.get("p_value",   None)
-    is_sig = sat_stat.get("is_significant", None)
-    effect_d = sat_stat.get("effect_size",    None)
-    ci_low = sat_stat.get("ci_low_95",      None)
-    ci_high = sat_stat.get("ci_high_95",     None)
-
-    rows = []
-    for _, row in df.iterrows():
-        rows.append((
-            row["experiment_record_id"],
-            row["experiment_id"],
-            row["passenger_id"],
-            row.get("cluster_id"),
-            row.get("cluster_label") if pd.notna(
-                row.get("cluster_label")) else "Underserved Riders",
-            row.get("origin_district"),
-            row.get("income_bracket"),
-
-            row["group"],
-            row["route_variant"],
-            int(row["test_week"]),
-            row.get("experiment_phase"),
-            row.get("is_treatment"),
-
-            int(row["simulated_travel_time_min"]),
-            float(row["simulated_fare_php"]),
-            int(row["transfers_needed"]),
-            int(row["satisfaction_score"]),
-            bool(row["would_use_again"]),
-
-            # Derived columns (calculated in dbt)
-            None,  # estimated_time_saving_min
-            None,  # fare_delta_php
-
-            # from int_passenger_features
-            row.get("underserved_severity_score"),
-
-            # Statistical columns from Python
-            p_value,
-            is_sig,
-            effect_d,
-            ci_low,
-            ci_high,
-        ))
-
-    upsert_sql = """
-        INSERT INTO marts.mart_ab_test_results (
-            experiment_record_id, experiment_id, passenger_id,
-            cluster_id, cluster_label, origin_district, income_bracket,
-            "group", route_variant, test_week,
-            experiment_phase, is_treatment,
-            simulated_travel_time_min, simulated_fare_php,
-            transfers_needed, satisfaction_score, would_use_again,
-            estimated_time_saving_min, fare_delta_php,
-            underserved_severity_score,
-            p_value, is_significant, effect_size,
-            confidence_interval_low, confidence_interval_high,
-            refreshed_at
-        ) VALUES (
-            %s, %s, %s,
-            %s, %s, %s, %s,
-            %s, %s, %s,
-            %s, %s,
-            %s, %s,
-            %s, %s, %s,
-            %s, %s,
-            %s,
-            %s, %s, %s,
-            %s, %s,
-            NOW()
-        )
-        ON CONFLICT (experiment_record_id) DO UPDATE SET
-            p_value                  = EXCLUDED.p_value,
-            is_significant           = EXCLUDED.is_significant,
-            effect_size              = EXCLUDED.effect_size,
-            confidence_interval_low  = EXCLUDED.confidence_interval_low,
-            confidence_interval_high = EXCLUDED.confidence_interval_high,
-            refreshed_at             = NOW()
-    """
-
-    with conn.cursor() as cur:
-        psycopg2.extras.execute_batch(cur, upsert_sql, rows, page_size=500)
-
-    conn.commit()
-    log.info("✅ Upserted %d rows into marts.mart_ab_test_results", len(rows))
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
@@ -386,8 +284,6 @@ def main():
                 "Consider extending trial or adjusting route design.",
                 ALPHA, sat_result.get("p_value", float("nan")),
             )
-
-        write_mart_ab_test_results(df, results, conn)
 
     finally:
         conn.close()

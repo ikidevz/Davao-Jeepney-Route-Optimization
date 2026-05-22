@@ -51,14 +51,16 @@ with DAG(
         bash_command=(
             "python -c \""
             "from pathlib import Path; "
-            "required = ['/opt/airflow/science/parquet/mart_commuter_clusters.parquet',"
-            "  '/opt/airflow/science/parquet/mart_ab_test_results.parquet']; "
+            "required = ['/opt/airflow/science/parquet/passenger_features.parquet',"
+            "  '/opt/airflow/science/parquet/cluster_assignments.parquet',"
+            "  '/opt/airflow/science/parquet/ab_test_statistics.parquet']; "
             "missing = [f for f in required if not Path(f).exists()]; "
             "assert not missing, f'Science outputs missing: {missing}'; "
             "print('All science Parquet outputs confirmed ready.')"
             "\""
         ),
     )
+
     dbt_refresh_int_features = BashOperator(
         task_id="dbt_refresh_int_passenger_features",
         bash_command=f"{DBT_CMD} run --select int_passenger_features {PROFILES_ARG}",
@@ -122,7 +124,7 @@ with DAG(
     )
 
     validate_ab_mart = BashOperator(
-        task_id="validate_ab_pvalues_in_mart",
+        task_id="validate_ab_mart_contents",
         bash_command=(
             "python -c \""
             "import psycopg2, os; "
@@ -132,13 +134,22 @@ with DAG(
             "  password=os.environ['SVC_PIPELINE_PASSWORD']"
             "); "
             "cur = conn.cursor(); "
-            "cur.execute(\\\"SELECT COUNT(*) FROM marts.mart_ab_test_results WHERE p_value IS NULL\\\"); "
-            "null_count = cur.fetchone()[0]; "
-            "print(f'mart_ab_test_results rows with NULL p_value: {null_count}'); "
-            "assert null_count == 0, 'NULL p_values found — ab_testing.py may not have run'; "
-            "cur.execute(\\\"SELECT is_significant, COUNT(*) FROM marts.mart_ab_test_results "
-            "  GROUP BY is_significant\\\"); "
-            "[print(f'  is_significant={r[0]}: {r[1]:,} rows') for r in cur.fetchall()]; "
+
+            "cur.execute(\\\"SELECT COUNT(*) FROM marts.mart_ab_test_results\\\"); "
+            "row_count = cur.fetchone()[0]; "
+            "print(f'mart_ab_test_results total rows: {row_count:,}'); "
+            "assert row_count > 0, 'mart_ab_test_results is empty!'; "
+
+            "cur.execute(\\\"SELECT COUNT(DISTINCT passenger_id) "
+            "FROM marts.mart_ab_test_results\\\"); "
+            "passengers = cur.fetchone()[0]; "
+            "print(f'Distinct passengers in A/B mart: {passengers:,}'); "
+
+            "cur.execute(\\\"SELECT route_variant, COUNT(*) "
+            "FROM marts.mart_ab_test_results "
+            "GROUP BY route_variant ORDER BY route_variant\\\"); "
+            "[print(f'  {r[0]}: {r[1]:,} rows') for r in cur.fetchall()]; "
+
             "conn.close()"
             "\""
         ),

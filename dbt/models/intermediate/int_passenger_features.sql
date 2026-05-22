@@ -53,6 +53,23 @@ encoded as (
         s.is_ab_test_eligible,
         s.is_likely_underserved,
 
+        case
+            when s.wait_time_min >= 45
+                and s.transfers_required >= 2
+                and s.satisfaction_score <= 2
+            then 1.00
+
+            when s.wait_time_min >= 35
+                and s.transfers_required >= 1
+                and s.satisfaction_score <= 3
+            then 0.75
+
+            when s.wait_time_min >= 25
+            then 0.50
+
+            else 0.25
+        end as underserved_severity_score,
+
         -- ── Numeric encodings for clustering ──────────────────────────────
         -- income_bracket → ordinal integer (used as clustering feature)
         case s.income_bracket
@@ -137,6 +154,7 @@ select
     cluster_id,
     cluster_label,
     is_ab_test_eligible,
-    is_likely_underserved
+    is_likely_underserved,
+    underserved_severity_score
 
 from encoded
