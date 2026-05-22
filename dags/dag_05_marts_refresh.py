@@ -163,12 +163,6 @@ with DAG(
         env=DBT_ENV,
     )
 
-    run_export_parquet = BashOperator(
-        task_id="run_export_to_parquet",
-        bash_command="python /opt/airflow/science/export_to_parquet.py",
-        env=DBT_ENV,
-    )
-
     pipeline_complete = BashOperator(
         task_id="pipeline_complete_notification",
         bash_command=(
