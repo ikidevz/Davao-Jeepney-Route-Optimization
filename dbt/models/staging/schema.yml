@@ -76,6 +76,10 @@ models:
         description: "FALSE if route is suspended under PUV Modernisation Program."
         tests:
           - not_null
+      - name: created_at
+        description: "Timestamp when record was created."
+      - name: updated_at
+        description: "Timestamp when record was last updated."
 
   - name: stg_operators
     description: >
@@ -91,6 +95,8 @@ models:
         description: "Operator or cooperative name."
         tests:
           - not_null
+      - name: contact_number
+        description: "Contact number of the operator/cooperative."
       - name: franchise_type
         description: "individual | cooperative | corporation."
         tests:
@@ -109,6 +115,10 @@ models:
         description: "TRUE if compliant with LTFRB PUV Modernisation Program."
         tests:
           - not_null
+      - name: created_at
+        description: "Timestamp when record was created."
+      - name: updated_at
+        description: "Timestamp when record was last updated."
 
   - name: stg_stops
     description: >
@@ -158,6 +168,8 @@ models:
         description: "TRUE if a waiting shed exists at this stop."
         tests:
           - not_null
+      - name: avg_daily_boardings
+        description: "Average daily passenger boardings at this stop."
       - name: route_id
         description: "FK to stg_routes."
         tests:
@@ -165,6 +177,10 @@ models:
           - relationships:
               to: ref('stg_routes')
               field: route_id
+      - name: created_at
+        description: "Timestamp when record was created."
+      - name: updated_at
+        description: "Timestamp when record was last updated."
 
   - name: stg_vehicles
     description: >
@@ -215,10 +231,18 @@ models:
           - relationships:
               to: ref('stg_operators')
               field: operator_id
+      - name: avg_fuel_cost_daily_php
+        description: "Average daily fuel cost in PHP."
       - name: is_active
         description: "FALSE if unit is retired from service."
         tests:
           - not_null
+      - name: vehicle_age_years
+        description: "Computed: Current year minus year_manufactured."
+      - name: created_at
+        description: "Timestamp when record was created."
+      - name: updated_at
+        description: "Timestamp when record was last updated."
 
   - name: stg_trips
     description: >
@@ -249,6 +273,10 @@ models:
         description: "Date the trip ran."
         tests:
           - not_null
+      - name: departure_time
+        description: "Scheduled departure time."
+      - name: arrival_time
+        description: "Actual arrival time."
       - name: time_period
         description: "AM_peak | midday | PM_peak | off_peak."
         tests:
@@ -278,13 +306,12 @@ models:
         description: "Total fare collected in PHP. Must be >= 0."
         tests:
           - not_null
-      - name: load_factor
-        description: "passengers_boarded / vehicle capacity. 0.0–1.5 allowed."
-        tests:
-          - not_null
-          - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1.5
+      - name: travel_time_min
+        description: "Actual travel time in minutes."
+      - name: scheduled_time_min
+        description: "Scheduled travel time in minutes."
+      - name: delay_min
+        description: "Delay in minutes."
       - name: is_on_time
         description: "TRUE when delay_min <= 5."
         tests:
@@ -293,6 +320,21 @@ models:
         description: "TRUE ~40% of days (Davao rainfall pattern)."
         tests:
           - not_null
+      - name: load_factor
+        description: "passengers_boarded / vehicle capacity. 0.0–1.5 allowed."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 1.5
+      - name: is_peak
+        description: "TRUE if trip is during AM_peak or PM_peak."
+      - name: is_weekend
+        description: "TRUE if trip occurred on Saturday or Sunday."
+      - name: is_overcrowded
+        description: "TRUE if load_factor > 1.0."
+      - name: created_at
+        description: "Timestamp when record was created."
 
   - name: stg_passenger_survey
     description: >
@@ -306,6 +348,10 @@ models:
         tests:
           - not_null
           - unique
+      - name: survey_date
+        description: "Date the survey was conducted."
+      - name: origin_barangay
+        description: "Barangay of passenger origin."
       - name: origin_district
         description: "Derived from origin_barangay."
         tests:
@@ -329,6 +375,21 @@ models:
           - relationships:
               to: ref('stg_routes')
               field: route_id
+      - name: trips_per_week
+        description: "Number of jeepney trips per week."
+      - name: avg_fare_paid_php
+        description: "Average fare paid per trip in PHP."
+      - name: transfers_required
+        description: "Jeepney transfers per trip (0–3)."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 3
+      - name: wait_time_min
+        description: "Average waiting time in minutes."
+      - name: travel_time_min
+        description: "Average travel time in minutes."
       - name: satisfaction_score
         description: "1 (very poor) to 5 (excellent)."
         tests:
@@ -342,13 +403,8 @@ models:
           - not_null
           - accepted_values:
               values: ["low", "middle", "high"]
-      - name: transfers_required
-        description: "Jeepney transfers per trip (0–3)."
-        tests:
-          - not_null
-          - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 3
+      - name: prefers_aircon
+        description: "Whether passenger prefers air-conditioned vehicles."
       - name: cluster_id
         description: >
           NULL at load time. Values 0–4 written by science/clustering.py.
@@ -360,6 +416,16 @@ models:
               max_value: 4
               config:
                 where: "cluster_id IS NOT NULL"
+      - name: cluster_label
+        description: "Human-readable label for the cluster (e.g. 'Underserved Riders')."
+      - name: is_ab_test_eligible
+        description: "TRUE if cluster_id = 3 (Underserved Riders)."
+      - name: is_likely_underserved
+        description: "Proxy flag based on high transfers, long wait, and low satisfaction."
+      - name: created_at
+        description: "Timestamp when record was created."
+      - name: updated_at
+        description: "Timestamp when record was last updated."
 
   - name: stg_ab_experiment
     description: >
@@ -373,6 +439,8 @@ models:
         tests:
           - not_null
           - unique
+      - name: experiment_id
+        description: "Experiment identifier."
       - name: passenger_id
         description: "FK to stg_passenger_survey."
         tests:
@@ -406,6 +474,12 @@ models:
           - dbt_utils.accepted_range:
               min_value: 1
               max_value: 8
+      - name: simulated_travel_time_min
+        description: "Simulated travel time under the route variant."
+      - name: simulated_fare_php
+        description: "Simulated fare under the route variant."
+      - name: transfers_needed
+        description: "Number of transfers needed in the simulated scenario."
       - name: satisfaction_score
         description: "Post-trip satisfaction 1–5."
         tests:
@@ -417,3 +491,21 @@ models:
         description: "Boolean retention indicator."
         tests:
           - not_null
+      - name: created_at
+        description: "Timestamp when record was created."
+      - name: updated_at
+        description: "Timestamp when record was last updated (cast as null)."
+      - name: experiment_phase
+        description: "ramp_up (weeks 1-4) | main (weeks 5-8)."
+      - name: is_treatment
+        description: "TRUE if group = 'treatment'."
+      - name: p_value
+        description: "Statistical p-value (populated in mart layer)."
+      - name: is_significant
+        description: "Whether result is statistically significant."
+      - name: effect_size
+        description: "Effect size of the A/B test."
+      - name: confidence_interval_low
+        description: "Lower bound of confidence interval."
+      - name: confidence_interval_high
+        description: "Upper bound of confidence interval."

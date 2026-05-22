@@ -25,9 +25,7 @@
 }}
 
 with route_perf as (
-
     select * from {{ ref('int_route_performance') }}
-
 )
 
 select

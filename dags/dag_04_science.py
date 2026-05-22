@@ -155,6 +155,7 @@ with DAG(
         >> validate_cluster_assignments
         >> run_ab_testing
         >> validate_ab_results
+        >> run_export_parquet
         >> validate_all_parquets
         >> trigger_marts
     )

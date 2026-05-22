@@ -6,6 +6,7 @@
 -- Depends on : stg_trips, stg_routes
 -- Materialise: ephemeral (inlined as CTE in mart models)
 -- Used by    : mart_route_summary, mart_district_ridership
+--
 -- =============================================================================
 
 {{
@@ -24,11 +25,10 @@ routes as (
 ),
 
 daily_agg as (
-
     select
         t.route_id,
         t.trip_date,
-        t.is_rainy_day,
+        bool_or(t.is_rainy_day)                                 as is_rainy_day,
 
         -- Volume counts
         count(t.trip_id)                                        as total_trips,
@@ -51,15 +51,18 @@ daily_agg as (
             3
         )                                                        as on_time_rate,
 
-        -- Peak vs off-peak split
-        count(t.trip_id) filter (where t.is_peak   = true)      as peak_trips,
-        count(t.trip_id) filter (where t.is_peak   = false)     as off_peak_trips
+        count(t.trip_id) filter (where t.is_peak = true)        as peak_trips,
+        count(t.trip_id) filter (where t.is_peak = false)       as off_peak_trips,
+        sum(t.passengers_boarded)
+            filter (where t.is_peak = true)                     as peak_passengers,
+
+        sum(t.passengers_boarded)
+            filter (where t.is_weekend = true)                  as weekend_passengers
 
     from trips as t
     group by
         t.route_id,
-        t.trip_date,
-        t.is_rainy_day
+        t.trip_date        -- FIX: removed is_rainy_day from GROUP BY
 
 )
 
@@ -76,7 +79,7 @@ select
     d.total_revenue_php,
 
     -- Revenue efficiency KPI
-    round(d.total_revenue_php / nullif(r.route_length_km, 0),2) as revenue_per_km_php,
+    round(d.total_revenue_php / nullif(r.route_length_km, 0), 2) as revenue_per_km_php,
 
     d.avg_load_factor,
     d.avg_travel_time_min,
@@ -84,7 +87,9 @@ select
     d.on_time_trips,
     d.on_time_rate,
     d.peak_trips,
-    d.off_peak_trips
+    d.off_peak_trips,
+    d.peak_passengers,
+    d.weekend_passengers
 
 from daily_agg as d
 inner join routes as r

@@ -23,12 +23,13 @@
     materialized = 'table',
     schema       = 'marts',
     tags = ["gold", "marts", "dashboard_2", "ml_output"],
-    post_hook    = "comment on table {{ this }} is 'Gold: 5,000 passengers with K-Means cluster assignments. Empty until clustering.py + dbt mart run. Built by dbt.'"
+    post_hook    = "comment on table {{ this }} is 'Gold: 5,000 passengers with K-Means cluster assignments. Populated after clustering.py runs. Built by dbt.'"
   )
 }}
 
 with features as (
-    select * from {{ ref('int_passenger_features') }}
+    select * 
+    from {{ ref('int_passenger_features') }}
     where cluster_id is not null
 )
 
@@ -58,15 +59,12 @@ select
     cluster_label,
 
     -- ── A/B test eligibility ─────────────────────────────────────────────────
-    -- Enforced: only cluster_id = 3 is eligible
     case
         when cluster_id = 3 then true
         else false
     end                                     as is_ab_test_eligible,
 
     -- ── Underserved severity score ────────────────────────────────────────────
-    -- Composite index for ranking within Cluster 3.
-    -- Higher = worse-served. Used in Streamlit cluster explorer.
     case
         when cluster_id = 3 then
             round(
@@ -88,6 +86,4 @@ select
     now()                                   as refreshed_at
 
 from features
-order by
-    cluster_id,
-    passenger_id
+order by cluster_id, passenger_id

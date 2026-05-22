@@ -2,9 +2,10 @@ version: 2
 
 # =============================================================================
 # INTERMEDIATE LAYER
-# Materialised as ephemeral (CTEs inlined into dependent marts).
+# Materialised as ephemeral (CTEs inlined into dependent marts), except
+# int_passenger_features which is materialised as TABLE.
 # These models contain business logic that would otherwise be repeated
-# across multiple mart models. They are never written to PostgreSQL.
+# across multiple mart models.
 #
 # int_daily_ridership     → mart_route_summary, mart_district_ridership
 # int_route_performance   → mart_route_summary
@@ -12,7 +13,6 @@ version: 2
 # =============================================================================
 
 models:
-
   - name: int_daily_ridership
     description: >
       Intermediate: daily ridership aggregates per route.
@@ -24,10 +24,18 @@ models:
         description: "Route identifier."
         tests:
           - not_null
+      - name: route_name
+        description: "Name of the route."
+      - name: district_covered
+        description: "District(s) served by the route."
+      - name: route_length_km
+        description: "Length of the route in kilometers."
       - name: trip_date
         description: "Aggregation date."
         tests:
           - not_null
+      - name: is_rainy_day
+        description: "Flag indicating if the day had rain."
       - name: total_trips
         description: "Count of trip runs on this route on this date."
         tests:
@@ -36,12 +44,36 @@ models:
         description: "Sum of all passengers boarded across trips."
         tests:
           - not_null
+      - name: avg_passengers_per_trip
+        description: "Average passengers per trip."
+      - name: total_revenue_php
+        description: "Total revenue generated on this route for the day."
+      - name: revenue_per_km_php
+        description: "Revenue efficiency (PHP per kilometer)."
+      - name: avg_load_factor
+        description: "Average load factor across trips."
+      - name: avg_travel_time_min
+        description: "Average travel time in minutes."
+      - name: avg_delay_min
+        description: "Average delay in minutes."
+      - name: on_time_trips
+        description: "Number of on-time trips."
+      - name: on_time_rate
+        description: "On-time performance rate (0-1)."
+      - name: peak_trips
+        description: "Number of peak-hour trips."
+      - name: off_peak_trips
+        description: "Number of off-peak trips."
+      - name: peak_passengers
+        description: "Passengers during peak hours."
+      - name: weekend_passengers
+        description: "Passengers on weekends."
 
   - name: int_route_performance
     description: >
       Intermediate: enriched route performance per day, joining trips,
       routes, vehicles, and operators. Computes on-time rate, load factor,
-      revenue per km, and peak/off-peak splits.
+      revenue per km, peak/off-peak splits, fleet composition, and fuel costs.
       Grain: one row per route per day.
       Used by: mart_route_summary.
     columns:
@@ -49,10 +81,64 @@ models:
         description: "Route identifier."
         tests:
           - not_null
+      - name: route_name
+        description: "Name of the route."
+      - name: district_covered
+        description: "District(s) served by the route."
+      - name: route_length_km
+        description: "Length of the route in kilometers."
+      - name: base_fare_php
+        description: "Base fare for the route."
+      - name: peak_frequency_min
+        description: "Peak hour frequency in minutes."
+      - name: off_peak_frequency_min
+        description: "Off-peak frequency in minutes."
       - name: trip_date
         description: "Aggregation date."
         tests:
           - not_null
+      - name: is_rainy_day
+        description: "Flag indicating if the day had rain."
+      - name: total_trips
+        description: "Count of trip runs on this route on this date."
+      - name: total_passengers
+        description: "Sum of all passengers boarded across trips."
+      - name: avg_passengers_per_trip
+        description: "Average passengers per trip."
+      - name: total_revenue_php
+        description: "Total revenue generated."
+      - name: revenue_per_km_php
+        description: "Revenue per kilometer."
+      - name: avg_load_factor
+        description: "Average load factor."
+      - name: avg_travel_time_min
+        description: "Average travel time in minutes."
+      - name: avg_delay_min
+        description: "Average delay in minutes."
+      - name: on_time_trips
+        description: "Number of on-time trips."
+      - name: on_time_rate
+        description: "On-time performance rate."
+      - name: peak_trips
+        description: "Number of peak-hour trips."
+      - name: off_peak_trips
+        description: "Number of off-peak trips."
+      - name: overcrowded_trips
+        description: "Number of overcrowded trips."
+      - name: distinct_vehicles
+        description: "Number of unique vehicles operating on the route that day."
+      - name: modern_vehicles
+        description: "Number of modernized PUV vehicles."
+      - name: avg_vehicle_capacity
+        description: "Average vehicle capacity."
+      - name: avg_fleet_age_years
+        description: "Average age of the fleet in years."
+      - name: electric_vehicles
+        description: "Number of electric vehicles."
+      - name: pct_compliant_operators
+        description: "Percentage of compliant operators."
+      - name: total_fuel_cost_php
+        description: "Total fuel cost for the route on that day."
 
   - name: int_passenger_features
     description: >
@@ -62,7 +148,64 @@ models:
       trips_per_week, avg_fare_paid_php, transfers_required, wait_time_min,
       satisfaction_score, income_bracket_encoded.
       Grain: one row per passenger.
-      Used by: mart_commuter_clusters.
+      Used by: mart_commuter_clusters, science/clustering.py.
       Materialised as TABLE (not ephemeral) and written to the staging schema
       so science/clustering.py can SELECT it directly from PostgreSQL after
       running: dbt run --select staging intermediate
+    columns:
+      - name: passenger_id
+        description: "Unique passenger identifier."
+        tests:
+          - not_null
+      - name: survey_date
+        description: "Date of the passenger survey."
+      - name: origin_barangay
+        description: "Barangay of origin."
+      - name: origin_district
+        description: "District of origin."
+      - name: destination_type
+        description: "Type of destination."
+      - name: trip_purpose
+        description: "Purpose of the trip."
+      - name: primary_route_used
+        description: "Primary route used by the passenger."
+      - name: income_bracket
+        description: "Income bracket (low, middle, high)."
+      - name: prefers_aircon
+        description: "Whether the passenger prefers air-conditioned vehicles."
+      - name: trips_per_week
+        description: "Number of trips per week."
+      - name: avg_fare_paid_php
+        description: "Average fare paid in PHP."
+      - name: transfers_required
+        description: "Number of transfers required."
+      - name: wait_time_min
+        description: "Average wait time in minutes."
+      - name: satisfaction_score
+        description: "Passenger satisfaction score."
+      - name: income_bracket_encoded
+        description: "Numeric encoding of income bracket (1=low, 2=middle, 3=high)."
+      - name: destination_type_encoded
+        description: "Numeric encoding of destination type."
+      - name: trip_purpose_encoded
+        description: "Numeric encoding of trip purpose."
+      - name: prefers_aircon_int
+        description: "Integer encoding of aircon preference (1=yes, 0=no)."
+      - name: travel_time_min
+        description: "Travel time in minutes."
+      - name: primary_route_name
+        description: "Name of the primary route used."
+      - name: primary_route_district
+        description: "District of the primary route."
+      - name: route_base_fare_php
+        description: "Base fare of the primary route."
+      - name: route_length_km
+        description: "Length of the primary route in km."
+      - name: cluster_id
+        description: "Assigned cluster ID (populated by clustering.py)."
+      - name: cluster_label
+        description: "Human-readable cluster label."
+      - name: is_ab_test_eligible
+        description: "Flag for A/B test eligibility."
+      - name: is_likely_underserved
+        description: "Flag indicating likely underserved passenger."

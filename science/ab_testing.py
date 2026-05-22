@@ -68,16 +68,34 @@ def load_experiment_data(conn) -> pd.DataFrame:
             e.transfers_needed,
             e.satisfaction_score,
             e.would_use_again,
-            c.cluster_label
+            e.experiment_phase,
+            e.is_treatment,
+
+            -- Pull cluster context from staging / intermediate (safer at this stage)
+            c.cluster_label,
+            c.origin_district,
+            c.income_bracket,
+            c.underserved_severity_score
+
         FROM staging.stg_ab_experiment e
-        LEFT JOIN staging.stg_passenger_survey c
+        LEFT JOIN intermediate.int_passenger_features c
             ON e.passenger_id = c.passenger_id
         WHERE e.cluster_id = %(cluster_id)s
         ORDER BY e.passenger_id, e.test_week
     """
-    log.info("Loading A/B experiment data for Cluster %d (Underserved Riders) …", UNDERSERVED_CLUSTER_ID)
-    df = pd.read_sql(query, conn, params={"cluster_id": UNDERSERVED_CLUSTER_ID})
+    log.info("Loading A/B experiment data for Cluster %d (Underserved Riders) …",
+             UNDERSERVED_CLUSTER_ID)
+
+    df = pd.read_sql(query, conn, params={
+                     "cluster_id": UNDERSERVED_CLUSTER_ID})
+
     log.info("  → %d experiment records loaded", len(df))
+
+    if not df.empty:
+        log.info("Available columns: %s", list(df.columns))
+        log.info("underserved_severity_score sample: %s",
+                 df['underserved_severity_score'].dropna().head().tolist())
+
     return df
 
 
@@ -86,12 +104,14 @@ def load_experiment_data(conn) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 def validate_split(df: pd.DataFrame) -> None:
     counts = df.drop_duplicates("passenger_id")["group"].value_counts()
-    log.info("Passenger split — Control: %d  Treatment: %d", counts.get("control", 0), counts.get("treatment", 0))
+    log.info("Passenger split — Control: %d  Treatment: %d",
+             counts.get("control", 0), counts.get("treatment", 0))
     total = counts.sum()
     for grp, cnt in counts.items():
         pct = 100 * cnt / total
         if not (40 <= pct <= 60):
-            log.warning("Split imbalance detected for group '%s': %.1f%%", grp, pct)
+            log.warning(
+                "Split imbalance detected for group '%s': %.1f%%", grp, pct)
 
 
 # ---------------------------------------------------------------------------
@@ -99,20 +119,23 @@ def validate_split(df: pd.DataFrame) -> None:
 # ---------------------------------------------------------------------------
 def cohens_d(group_a: np.ndarray, group_b: np.ndarray) -> float:
     """Compute Cohen's d effect size."""
-    pooled_std = np.sqrt((group_a.std(ddof=1) ** 2 + group_b.std(ddof=1) ** 2) / 2)
+    pooled_std = np.sqrt(
+        (group_a.std(ddof=1) ** 2 + group_b.std(ddof=1) ** 2) / 2)
     if pooled_std == 0:
         return 0.0
     return float((group_b.mean() - group_a.mean()) / pooled_std)
 
 
 def run_ttest(control: np.ndarray, treatment: np.ndarray, metric_name: str) -> dict:
-    t_stat, p_value = stats.ttest_ind(control, treatment, equal_var=False)  # Welch's t-test
+    t_stat, p_value = stats.ttest_ind(
+        control, treatment, equal_var=False)  # Welch's t-test
     d = cohens_d(control, treatment)
 
     # 95% CI on the difference of means
     diff = treatment.mean() - control.mean()
-    se = np.sqrt(control.var(ddof=1) / len(control) + treatment.var(ddof=1) / len(treatment))
-    ci_low  = diff - 1.96 * se
+    se = np.sqrt(control.var(ddof=1) / len(control) +
+                 treatment.var(ddof=1) / len(treatment))
+    ci_low = diff - 1.96 * se
     ci_high = diff + 1.96 * se
 
     result = {
@@ -177,7 +200,7 @@ def run_chi_square(control: pd.Series, treatment: pd.Series, metric_name: str) -
 # ---------------------------------------------------------------------------
 def run_all_tests(df: pd.DataFrame) -> list[dict]:
     ctrl = df[df["group"] == "control"]
-    trt  = df[df["group"] == "treatment"]
+    trt = df[df["group"] == "treatment"]
 
     log.info("Running statistical tests …")
 
@@ -233,15 +256,15 @@ def write_mart_ab_test_results(df: pd.DataFrame, test_results: list[dict], conn)
     """
     log.info("Writing to marts.mart_ab_test_results …")
 
-    # Pick the primary metric results (satisfaction_score)
+    # Pick statistics from primary metric (satisfaction_score)
     stat_map = {r["metric"]: r for r in test_results}
     sat_stat = stat_map.get("satisfaction_score", {})
 
-    p_value    = sat_stat.get("p_value",   None)
-    is_sig     = sat_stat.get("is_significant", None)
-    effect_d   = sat_stat.get("effect_size",    None)
-    ci_low     = sat_stat.get("ci_low_95",      None)
-    ci_high    = sat_stat.get("ci_high_95",     None)
+    p_value = sat_stat.get("p_value",   None)
+    is_sig = sat_stat.get("is_significant", None)
+    effect_d = sat_stat.get("effect_size",    None)
+    ci_low = sat_stat.get("ci_low_95",      None)
+    ci_high = sat_stat.get("ci_high_95",     None)
 
     rows = []
     for _, row in df.iterrows():
@@ -249,15 +272,32 @@ def write_mart_ab_test_results(df: pd.DataFrame, test_results: list[dict], conn)
             row["experiment_record_id"],
             row["experiment_id"],
             row["passenger_id"],
-            row["cluster_label"] if pd.notna(row.get("cluster_label")) else "Underserved Riders",
+            row.get("cluster_id"),
+            row.get("cluster_label") if pd.notna(
+                row.get("cluster_label")) else "Underserved Riders",
+            row.get("origin_district"),
+            row.get("income_bracket"),
+
             row["group"],
             row["route_variant"],
             int(row["test_week"]),
+            row.get("experiment_phase"),
+            row.get("is_treatment"),
+
             int(row["simulated_travel_time_min"]),
             float(row["simulated_fare_php"]),
             int(row["transfers_needed"]),
             int(row["satisfaction_score"]),
             bool(row["would_use_again"]),
+
+            # Derived columns (calculated in dbt)
+            None,  # estimated_time_saving_min
+            None,  # fare_delta_php
+
+            # from int_passenger_features
+            row.get("underserved_severity_score"),
+
+            # Statistical columns from Python
             p_value,
             is_sig,
             effect_d,
@@ -268,17 +308,25 @@ def write_mart_ab_test_results(df: pd.DataFrame, test_results: list[dict], conn)
     upsert_sql = """
         INSERT INTO marts.mart_ab_test_results (
             experiment_record_id, experiment_id, passenger_id,
-            cluster_label, "group", route_variant, test_week,
+            cluster_id, cluster_label, origin_district, income_bracket,
+            "group", route_variant, test_week,
+            experiment_phase, is_treatment,
             simulated_travel_time_min, simulated_fare_php,
             transfers_needed, satisfaction_score, would_use_again,
+            estimated_time_saving_min, fare_delta_php,
+            underserved_severity_score,
             p_value, is_significant, effect_size,
             confidence_interval_low, confidence_interval_high,
             refreshed_at
         ) VALUES (
             %s, %s, %s,
             %s, %s, %s, %s,
+            %s, %s, %s,
+            %s, %s,
             %s, %s,
             %s, %s, %s,
+            %s, %s,
+            %s,
             %s, %s, %s,
             %s, %s,
             NOW()
@@ -294,8 +342,9 @@ def write_mart_ab_test_results(df: pd.DataFrame, test_results: list[dict], conn)
 
     with conn.cursor() as cur:
         psycopg2.extras.execute_batch(cur, upsert_sql, rows, page_size=500)
+
     conn.commit()
-    log.info("Upserted %d rows into marts.mart_ab_test_results", len(rows))
+    log.info("✅ Upserted %d rows into marts.mart_ab_test_results", len(rows))
 
 
 # ---------------------------------------------------------------------------
@@ -303,8 +352,10 @@ def write_mart_ab_test_results(df: pd.DataFrame, test_results: list[dict], conn)
 # ---------------------------------------------------------------------------
 def main():
     log.info("=== A/B Testing Pipeline START ===")
-    log.info("Hypothesis: Matina → SM Lanang express reduces travel time and improves satisfaction")
-    log.info("α = %.2f  |  Primary metric: satisfaction_score  |  Secondary: would_use_again", ALPHA)
+    log.info(
+        "Hypothesis: Matina → SM Lanang express reduces travel time and improves satisfaction")
+    log.info(
+        "α = %.2f  |  Primary metric: satisfaction_score  |  Secondary: would_use_again", ALPHA)
 
     conn = get_connection()
     try:
@@ -321,7 +372,8 @@ def main():
         save_statistics_parquet(results)
 
         # Summary
-        sat_result = next((r for r in results if r["metric"] == "satisfaction_score"), {})
+        sat_result = next(
+            (r for r in results if r["metric"] == "satisfaction_score"), {})
         if sat_result.get("is_significant"):
             log.info(
                 "✓ RESULT: Treatment B (express route) shows a STATISTICALLY SIGNIFICANT "

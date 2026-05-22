@@ -55,7 +55,7 @@ route_fuel_cost as (
     select
         route_id,
         trip_date,
-        sum(avg_fuel_cost_daily_php)    as total_fuel_cost_php
+        sum(avg_fuel_cost_daily_php)  as total_fuel_cost_php
 
     from vehicle_daily_cost
     group by

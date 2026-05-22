@@ -78,7 +78,7 @@ def load_passenger_features(conn) -> pd.DataFrame:
             satisfaction_score,
             income_bracket,
             prefers_aircon
-        FROM staging.int_passenger_features
+        FROM intermediate.int_passenger_features
         ORDER BY passenger_id
     """
     log.info("Pulling int_passenger_features from PostgreSQL …")

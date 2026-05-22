@@ -74,7 +74,7 @@ GRANT USAGE ON SCHEMA raw     TO jeepney_reader;
 
 GRANT ALL   ON SCHEMA staging TO jeepney_admin;
 GRANT USAGE ON SCHEMA staging TO jeepney_writer;
-GRANT USAGE ON SCHEMA staging TO jeepney_reader;  -- needed for cross-schema joins from marts
+GRANT USAGE ON SCHEMA staging TO jeepney_reader;
 
 GRANT ALL   ON SCHEMA marts   TO jeepney_admin;
 GRANT USAGE ON SCHEMA marts   TO jeepney_reader;
@@ -127,8 +127,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA marts
   GRANT ALL    ON SEQUENCES TO jeepney_admin;
 
 -- =============================================================================
--- END OF 04_schemas.sql
--- =============================================================================
 
 -- =============================================================================
 -- INTERMEDIATE SCHEMA
@@ -151,27 +149,5 @@ ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA intermediate
   GRANT SELECT ON TABLES    TO jeepney_reader;
 
 -- =============================================================================
--- staging SCHEMA
--- dbt staging models (views) land here — separate from the staging source
--- tables to avoid name collisions. dbt would otherwise try to swap a view
--- named stg_routes over the existing stg_routes TABLE, causing deadlocks.
---
--- Access: same as staging — writer can INSERT (for any future use),
---         reader can SELECT (for cross-schema joins from marts).
+-- END OF 04_schemas.sql
 -- =============================================================================
-
-CREATE SCHEMA IF NOT EXISTS staging AUTHORIZATION svc_pipeline;
-
-COMMENT ON SCHEMA staging IS
-  'dbt-managed Silver views. Mirrors staging source tables as clean SELECT views. '
-  'Kept separate from staging to prevent dbt view-swap deadlocks on source tables. '
-  'Owner: svc_pipeline.';
-
-GRANT ALL   ON SCHEMA staging TO jeepney_admin;
-GRANT USAGE ON SCHEMA staging TO jeepney_reader;
-GRANT USAGE ON SCHEMA staging TO jeepney_writer;
-
-ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
-  GRANT ALL    ON TABLES TO jeepney_admin;
-ALTER DEFAULT PRIVILEGES FOR ROLE svc_pipeline IN SCHEMA staging
-  GRANT SELECT ON TABLES TO jeepney_reader;

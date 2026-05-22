@@ -46,23 +46,13 @@ with DAG(
     tags=["jeepney", "dbt", "transform"],
 ) as dag:
 
-    # ── Step 0: install / refresh dbt packages ────────────────────────────────
     dbt_deps = BashOperator(
         task_id="dbt_deps",
         bash_command=f"{DBT_CMD} deps {PROFILES_ARG}",
         env=DBT_ENV,
     )
 
-    # ── Step 1: compile-only pass ─────────────────────────────────────────────
-    # Resolves all ref() and source() calls and validates Jinja syntax without
-    # writing anything to the database. Fails fast on any config/syntax error.
-    dbt_compile = BashOperator(
-        task_id="dbt_compile",
-        bash_command=f"{DBT_CMD} compile {PROFILES_ARG}",
-        env=DBT_ENV,
-    )
-
-    # ── Step 2: Staging models ────────────────────────────────────────────────
+    # Staging
     dbt_run_staging = BashOperator(
         task_id="dbt_run_staging",
         bash_command=f"{DBT_CMD} run --select staging {PROFILES_ARG}",
@@ -75,7 +65,7 @@ with DAG(
         env=DBT_ENV,
     )
 
-    # ── Step 3: Intermediate models ───────────────────────────────────────────
+    # Intermediate
     dbt_run_intermediate = BashOperator(
         task_id="dbt_run_intermediate",
         bash_command=f"{DBT_CMD} run --select intermediate {PROFILES_ARG}",
@@ -99,9 +89,9 @@ with DAG(
             "  password=os.environ['SVC_PIPELINE_PASSWORD']"
             "); "
             "cur = conn.cursor(); "
-            "cur.execute('SELECT COUNT(*) FROM staging.int_passenger_features'); "
+            "cur.execute('SELECT COUNT(*) FROM intermediate.int_passenger_features'); "
             "n = cur.fetchone()[0]; "
-            "print(f'int_passenger_features: {n:,} rows'); "
+            "print(f'intermediate.int_passenger_features: {n:,} rows'); "
             "assert n > 0, 'int_passenger_features is empty — clustering will fail!'; "
             "conn.close()"
             "\""
@@ -116,10 +106,9 @@ with DAG(
         reset_dag_run=True,
     )
 
-    # ── Task flow ─────────────────────────────────────────────────────────────
+    # Task flow
     (
         dbt_deps
-        >> dbt_compile
         >> dbt_run_staging
         >> dbt_test_staging
         >> dbt_run_intermediate
