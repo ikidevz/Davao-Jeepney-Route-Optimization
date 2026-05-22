@@ -23,18 +23,13 @@
     materialized = 'table',
     schema       = 'marts',
     tags = ["gold", "marts", "dashboard_2", "ml_output"],
-    post_hook    = "comment on table {{ this }} is 'Gold: 5,000 passengers with K-Means cluster assignments. Empty until clustering.py + dbt mart run. Built by dbt. Refreshed: ' || now()::text"
+    post_hook    = "comment on table {{ this }} is 'Gold: 5,000 passengers with K-Means cluster assignments. Empty until clustering.py + dbt mart run. Built by dbt.'"
   )
 }}
 
 with features as (
-
     select * from {{ ref('int_passenger_features') }}
-
-    -- Guard: only include rows where clustering has run
-    -- Rows where cluster_id IS NULL are still in staging but not surfaced here
     where cluster_id is not null
-
 )
 
 select

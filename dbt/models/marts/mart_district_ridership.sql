@@ -18,7 +18,7 @@
     materialized = 'table',
     schema       = 'marts',
     tags = ["gold", "marts", "dashboard_2"],
-    post_hook    = "comment on table {{ this }} is 'Gold: daily ridership and service quality by district. Grain: one row per district per day. Built by dbt. Refreshed: ' || now()::text"
+    post_hook    = "comment on table {{ this }} is 'Gold: daily ridership and service quality by district. Grain: one row per district per day. Built by dbt.'"
   )
 }}
 

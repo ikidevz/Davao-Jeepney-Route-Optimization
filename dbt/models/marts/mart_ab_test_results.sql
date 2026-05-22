@@ -25,7 +25,7 @@
     materialized = 'table',
     schema       = 'marts',
     tags = ["gold", "marts", "dashboard_3", "ab_test"],
-    post_hook    = "comment on table {{ this }} is 'Gold: A/B test results for Cluster 3 (Underserved Riders). Statistical columns NULL until ab_testing.py runs. Built by dbt. Refreshed: ' || now()::text"
+    post_hook    = "comment on table {{ this }} is 'Gold: A/B test results for Cluster 3 (Underserved Riders). Statistical columns NULL until ab_testing.py runs. Built by dbt.'"
   )
 }}
 
