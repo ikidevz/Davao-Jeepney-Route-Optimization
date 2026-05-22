@@ -2,39 +2,36 @@
 02_ab_test_results.py
 ---------------------
 A/B Test Results page — Matina → SM Lanang express route experiment analysis.
-
-Sections:
-  1. Experiment summary banner
-  2. Statistical test results (t-test + chi-square)
-  3. Satisfaction lift chart (control vs treatment, by week)
-  4. Travel time comparison violin/box
-  5. Confidence interval chart
-  6. Recommendation verdict
 """
 
+import io
 import os
 from pathlib import Path
 
+import duckdb
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-st.set_page_config(page_title="A/B Test Results · Davao Jeepney", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="A/B Test Results · Davao Jeepney",
+                   page_icon="🧪", layout="wide")
 
 PARQUET_DIR = Path(os.getenv("PARQUET_DIR", "/app/parquet"))
 
+ALPHA = 0.05
+
 
 # ---------------------------------------------------------------------------
-# Data loading
+# Data loading (DuckDB)
 # ---------------------------------------------------------------------------
 @st.cache_data(ttl=300)
 def load_ab_results() -> pd.DataFrame:
     path = PARQUET_DIR / "mart_ab_test_results.parquet"
     if not path.exists():
         return pd.DataFrame()
-    return pd.read_parquet(path)
+    return duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
 
 
 @st.cache_data(ttl=300)
@@ -42,15 +39,27 @@ def load_statistics() -> pd.DataFrame:
     path = PARQUET_DIR / "ab_test_statistics.parquet"
     if not path.exists():
         return pd.DataFrame()
-    return pd.read_parquet(path)
+    return duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
 
 
 def get_stat(stats_df: pd.DataFrame, metric: str) -> dict:
-    """Safely extract a single metric row as a dict; returns {} if not found."""
     rows = stats_df[stats_df["metric"] == metric]
     if rows.empty:
         return {}
     return rows.iloc[0].to_dict()
+
+
+def effect_size_label(d: float) -> str:
+    """Interpret Cohen's d magnitude."""
+    d = abs(d)
+    if d < 0.2:
+        return "🟡 Negligible"
+    elif d < 0.5:
+        return "🟠 Small"
+    elif d < 0.8:
+        return "🟢 Medium"
+    else:
+        return "🔵 Large"
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +68,7 @@ def get_stat(stats_df: pd.DataFrame, metric: str) -> dict:
 st.title("🧪 A/B Test Results")
 st.caption("Matina → SM Lanang Express Route Experiment — 8-Week Simulated Trial")
 
-df    = load_ab_results()
+df = load_ab_results()
 stats = load_statistics()
 
 if df.empty or stats.empty:
@@ -72,19 +81,19 @@ if df.empty or stats.empty:
 # Experiment summary banner
 # ---------------------------------------------------------------------------
 ctrl = df[df["group"] == "control"]
-trt  = df[df["group"] == "treatment"]
+trt = df[df["group"] == "treatment"]
 
 n_ctrl = ctrl["passenger_id"].nunique()
-n_trt  = trt["passenger_id"].nunique()
+n_trt = trt["passenger_id"].nunique()
 
-sat_stat  = get_stat(stats, "satisfaction_score")
+sat_stat = get_stat(stats, "satisfaction_score")
 time_stat = get_stat(stats, "simulated_travel_time_min")
-chi_stat  = get_stat(stats, "would_use_again")
+chi_stat = get_stat(stats, "would_use_again")
 
 is_sig = bool(sat_stat.get("is_significant", False))
-verdict_color  = "green" if is_sig else "orange"
+verdict_color = "green" if is_sig else "orange"
 verdict_symbol = "✅" if is_sig else "⚠️"
-verdict_text   = (
+verdict_text = (
     "Express route SIGNIFICANTLY improves commuter satisfaction (p < 0.05)"
     if is_sig
     else "No statistically significant improvement detected at α = 0.05"
@@ -105,14 +114,18 @@ st.markdown("---")
 # ---------------------------------------------------------------------------
 # KPI row
 # ---------------------------------------------------------------------------
-k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("Control (A) size",    f"{n_ctrl} passengers")
-k2.metric("Treatment (B) size",  f"{n_trt} passengers")
+k1, k2, k3, k4, k5, k6 = st.columns(6)
+k1.metric("Control (A) size",    f"{n_ctrl:,}")
+k2.metric("Treatment (B) size",  f"{n_trt:,}")
 k3.metric("Trial duration",      "8 weeks")
 k4.metric("p-value (satisfaction)",
-          f"{sat_stat['p_value']:.4f}" if sat_stat else "N/A")
+          f"{sat_stat['p_value']:.4f}" if sat_stat else "N/A",
+          delta="significant" if is_sig else "not significant",
+          delta_color="normal" if is_sig else "inverse")
 k5.metric("Cohen's d",
           f"{sat_stat['effect_size']:.3f}" if sat_stat else "N/A")
+k6.metric("Effect size",
+          effect_size_label(sat_stat.get("effect_size", 0)) if sat_stat else "—")
 
 st.markdown("---")
 
@@ -130,14 +143,14 @@ with st.expander("📋 Experiment Design", expanded=False):
         | **Target segment** | Cluster 3 — Underserved Riders (lowest satisfaction) |
         | **Split** | 50 / 50 random assignment |
         | **Duration** | 8 simulated weeks |
-        | **Primary metric** | `satisfaction_score` (1–5 scale) — two-sample t-test |
+        | **Primary metric** | `satisfaction_score` (1–5 scale) — Welch's two-sample t-test |
         | **Secondary metric** | `would_use_again` (boolean) — chi-square test |
         | **Significance level** | α = 0.05, target power = 0.80 |
         """
     )
 
 # ---------------------------------------------------------------------------
-# Statistical test results table
+# Statistical test results table + CSV export
 # ---------------------------------------------------------------------------
 st.subheader("Statistical Test Results")
 
@@ -153,9 +166,11 @@ for _, row in stats.iterrows():
             "Statistic":      f"χ²={float(row.get('chi2_statistic', 0)):.3f}",
             "p-value":        f"{float(row.get('p_value', 1)):.4f}",
             "Significant":    "✅ Yes" if row.get("is_significant") else "❌ No",
+            "Effect Size":    "—",
         })
     else:
         label = "Satisfaction Score" if metric == "satisfaction_score" else "Travel Time (min)"
+        d_val = float(row.get("effect_size", 0))
         display_stats.append({
             "Metric":         label,
             "Test":           "Welch's t-test",
@@ -164,45 +179,80 @@ for _, row in stats.iterrows():
             "Statistic":      f"t={float(row.get('t_statistic', 0)):.3f}",
             "p-value":        f"{float(row.get('p_value', 1)):.4f}",
             "Significant":    "✅ Yes" if row.get("is_significant") else "❌ No",
+            "Effect Size":    effect_size_label(d_val),
         })
 
-st.dataframe(pd.DataFrame(display_stats), use_container_width=True, hide_index=True)
+stats_display_df = pd.DataFrame(display_stats)
+st.dataframe(stats_display_df, use_container_width=True, hide_index=True)
+
+csv_stats = io.BytesIO()
+stats.to_csv(csv_stats, index=False)
+st.download_button(
+    "📥 Export statistics (CSV)",
+    data=csv_stats.getvalue(),
+    file_name="ab_test_statistics.csv",
+    mime="text/csv",
+)
 
 st.markdown("---")
 
 # ---------------------------------------------------------------------------
-# Weekly satisfaction trend
+# Weekly satisfaction trend with confidence band
 # ---------------------------------------------------------------------------
 st.subheader("Satisfaction Score by Week — Control vs Treatment")
 
 weekly = (
     df.groupby(["test_week", "group"])["satisfaction_score"]
-    .mean()
+    .agg(["mean", "std", "count"])
     .reset_index()
 )
+weekly["se"] = weekly["std"] / np.sqrt(weekly["count"])
+weekly["ci_upper"] = weekly["mean"] + 1.96 * weekly["se"]
+weekly["ci_lower"] = weekly["mean"] - 1.96 * weekly["se"]
 weekly["group_label"] = weekly["group"].map({"control": "Control (A) — Current Route",
-                                              "treatment": "Treatment (B) — Express Route"})
+                                             "treatment": "Treatment (B) — Express Route"})
 
-fig_weekly = px.line(
-    weekly,
-    x="test_week",
-    y="satisfaction_score",
-    color="group_label",
-    markers=True,
-    color_discrete_map={
-        "Control (A) — Current Route":    "#94a3b8",
-        "Treatment (B) — Express Route":  "#3B82F6",
-    },
-    labels={"test_week": "Experiment Week", "satisfaction_score": "Avg Satisfaction Score",
-             "group_label": "Group"},
-    title="Weekly Average Satisfaction Score",
+fig_weekly = go.Figure()
+for grp, grp_label, color in [
+    ("control",   "Control (A) — Current Route",   "#94a3b8"),
+    ("treatment", "Treatment (B) — Express Route",  "#3B82F6"),
+]:
+    g = weekly[weekly["group"] == grp]
+    # CI band
+    fig_weekly.add_trace(go.Scatter(
+        x=pd.concat([g["test_week"], g["test_week"][::-1]]),
+        y=pd.concat([g["ci_upper"], g["ci_lower"][::-1]]),
+        fill="toself",
+        fillcolor=color,
+        opacity=0.12,
+        line=dict(color="rgba(255,255,255,0)"),
+        showlegend=False,
+        hoverinfo="skip",
+    ))
+    # Mean line
+    fig_weekly.add_trace(go.Scatter(
+        x=g["test_week"],
+        y=g["mean"],
+        mode="lines+markers",
+        name=grp_label,
+        line=dict(color=color, width=2),
+        marker=dict(size=7),
+    ))
+
+fig_weekly.add_hline(y=3, line_dash="dot", line_color="gray",
+                     annotation_text="Neutral (3.0)")
+fig_weekly.update_layout(
+    height=380,
+    yaxis_range=[1, 5],
+    xaxis_title="Experiment Week",
+    yaxis_title="Avg Satisfaction Score",
+    title="Weekly Average Satisfaction Score (with 95% CI bands)",
+    legend_title="Group",
 )
-fig_weekly.update_layout(height=380, yaxis_range=[1, 5])
-fig_weekly.add_hline(y=3, line_dash="dot", line_color="gray", annotation_text="Neutral (3.0)")
 st.plotly_chart(fig_weekly, use_container_width=True)
 
 # ---------------------------------------------------------------------------
-# Distribution comparison
+# Distribution comparisons
 # ---------------------------------------------------------------------------
 dist_col1, dist_col2 = st.columns(2)
 
@@ -230,12 +280,48 @@ with dist_col2:
         y="simulated_travel_time_min",
         color="group",
         color_discrete_map={"control": "#94a3b8", "treatment": "#3B82F6"},
-        labels={"group": "Group", "simulated_travel_time_min": "Travel Time (min)"},
+        labels={"group": "Group",
+                "simulated_travel_time_min": "Travel Time (min)"},
         title="Travel Time by Group",
         points="outliers",
     )
     fig_time.update_layout(height=350, showlegend=False)
     st.plotly_chart(fig_time, use_container_width=True)
+
+# Fare comparison (new)
+if "simulated_fare_php" in df.columns:
+    fare_col1, fare_col2 = st.columns(2)
+    with fare_col1:
+        st.subheader("Simulated Fare Distribution (₱)")
+        fig_fare = px.violin(
+            df,
+            x="group",
+            y="simulated_fare_php",
+            color="group",
+            box=True,
+            color_discrete_map={"control": "#94a3b8", "treatment": "#3B82F6"},
+            labels={"group": "Group", "simulated_fare_php": "Fare (₱)"},
+            title="Fare Distribution by Group",
+        )
+        fig_fare.update_layout(height=350, showlegend=False)
+        st.plotly_chart(fig_fare, use_container_width=True)
+
+    with fare_col2:
+        if "transfers_needed" in df.columns:
+            st.subheader("Transfers Needed Distribution")
+            fig_xfer = px.histogram(
+                df,
+                x="transfers_needed",
+                color="group",
+                barmode="group",
+                color_discrete_map={
+                    "control": "#94a3b8", "treatment": "#3B82F6"},
+                labels={"group": "Group",
+                        "transfers_needed": "Transfers Needed"},
+                title="Transfers Needed by Group",
+            )
+            fig_xfer.update_layout(height=350)
+            st.plotly_chart(fig_xfer, use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Confidence interval chart
@@ -267,13 +353,15 @@ if ci_rows:
             x=[r["ci_low"], r["diff"], r["ci_high"]],
             y=[r["Metric"]] * 3,
             mode="lines+markers",
-            marker=dict(size=[8, 14, 8], color=color, symbol=["line-ew", "circle", "line-ew"]),
+            marker=dict(size=[8, 14, 8], color=color, symbol=[
+                        "line-ew", "circle", "line-ew"]),
             line=dict(color=color, width=3),
             name=r["Metric"],
             showlegend=False,
         ))
 
-    fig_ci.add_vline(x=0, line_dash="dash", line_color="gray", annotation_text="No effect")
+    fig_ci.add_vline(x=0, line_dash="dash", line_color="gray",
+                     annotation_text="No effect")
     fig_ci.update_layout(
         title="95% CI of Mean Difference (Treatment − Control)",
         xaxis_title="Difference in Mean",
@@ -281,6 +369,37 @@ if ci_rows:
         yaxis=dict(tickfont=dict(size=13)),
     )
     st.plotly_chart(fig_ci, use_container_width=True)
+
+# ---------------------------------------------------------------------------
+# District breakdown: where did treatment help most?
+# ---------------------------------------------------------------------------
+if "origin_district" in df.columns or "cluster_label" in df.columns:
+    st.subheader("Treatment Benefit by Origin (Satisfaction Lift)")
+    group_col = "origin_district" if "origin_district" in df.columns else "cluster_label"
+    if group_col in df.columns:
+        pivot = (
+            df.groupby([group_col, "group"])["satisfaction_score"]
+            .mean()
+            .unstack("group")
+            .dropna()
+        )
+        if "control" in pivot.columns and "treatment" in pivot.columns:
+            pivot["lift"] = pivot["treatment"] - pivot["control"]
+            pivot = pivot.reset_index().sort_values("lift", ascending=False)
+            fig_lift = px.bar(
+                pivot,
+                x=group_col,
+                y="lift",
+                title=f"Satisfaction Lift (Treatment − Control) by {group_col.replace('_', ' ').title()}",
+                labels={group_col: group_col.replace(
+                    "_", " ").title(), "lift": "Satisfaction Lift"},
+                color="lift",
+                color_continuous_scale="RdYlGn",
+                color_continuous_midpoint=0,
+            )
+            fig_lift.add_hline(y=0, line_dash="solid", line_color="gray")
+            fig_lift.update_layout(height=380, coloraxis_showscale=False)
+            st.plotly_chart(fig_lift, use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Retention (would_use_again)
@@ -312,6 +431,26 @@ fig_ret.update_layout(height=350, showlegend=False, yaxis_range=[0, 110])
 st.plotly_chart(fig_ret, use_container_width=True)
 
 # ---------------------------------------------------------------------------
+# Raw data explorer
+# ---------------------------------------------------------------------------
+with st.expander("🔍 Raw Experiment Data Explorer"):
+    week_filter = st.slider(
+        "Filter by experiment week:",
+        min_value=int(df["test_week"].min()),
+        max_value=int(df["test_week"].max()),
+        value=(int(df["test_week"].min()), int(df["test_week"].max())),
+    )
+    group_filter = st.multiselect("Group:", ["control", "treatment"], default=[
+                                  "control", "treatment"])
+    raw_filtered = df[
+        df["test_week"].between(*week_filter) &
+        df["group"].isin(group_filter)
+    ]
+    st.dataframe(raw_filtered.head(500),
+                 use_container_width=True, hide_index=True)
+    st.caption(f"Showing first 500 of {len(raw_filtered):,} rows.")
+
+# ---------------------------------------------------------------------------
 # Recommendation
 # ---------------------------------------------------------------------------
 st.markdown("---")
@@ -319,16 +458,16 @@ st.subheader("📌 Recommendation")
 
 p_val = float(sat_stat.get("p_value", 1))
 d_val = float(sat_stat.get("effect_size", 0))
-ctrl_sat  = float(sat_stat.get("control_mean", 0))
-trt_sat   = float(sat_stat.get("treatment_mean", 0))
-ctrl_time = float(time_stat.get("control_mean", 0))
-trt_time  = float(time_stat.get("treatment_mean", 0))
+ctrl_sat = float(sat_stat.get("control_mean", 0))
+trt_sat = float(sat_stat.get("treatment_mean", 0))
+ctrl_time = float(time_stat.get("control_mean", 0)) if time_stat else 0
+trt_time = float(time_stat.get("treatment_mean", 0)) if time_stat else 0
 
 if is_sig:
     st.success(
         f"**Adopt the Matina → SM Lanang Express Route.**\n\n"
         f"The experiment demonstrates a statistically significant improvement in commuter satisfaction "
-        f"(p = {p_val:.4f}, Cohen's d = {d_val:.3f}). "
+        f"(p = {p_val:.4f}, Cohen's d = {d_val:.3f} — {effect_size_label(d_val)}). "
         f"Treatment group satisfaction rose from {ctrl_sat:.2f} to {trt_sat:.2f} on a 5-point scale. "
         f"Average travel time fell from {ctrl_time:.0f} min to {trt_time:.0f} min — a "
         f"{abs(ctrl_time - trt_time):.0f}-minute reduction. "
@@ -342,4 +481,6 @@ else:
         f"based on qualitative commuter feedback from Cluster 3 interviews."
     )
 
-st.caption(f"Statistical tests: Welch's t-test (satisfaction, travel time) + Chi-square (would_use_again). α = 0.05.")
+st.caption(
+    f"Statistical tests: Welch's t-test (satisfaction, travel time) + Chi-square (would_use_again). α = 0.05."
+)
