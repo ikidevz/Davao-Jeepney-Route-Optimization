@@ -133,8 +133,7 @@ with DAG(
             "parquet_dir = Path('/opt/airflow/science/parquet'); "
             "required = ['passenger_features.parquet', 'cluster_assignments.parquet', "
             "  'ab_test_statistics.parquet', 'elbow_scores.parquet', "
-            "  'silhouette_scores.parquet', 'mart_commuter_clusters.parquet', "
-            "  'mart_ab_test_results.parquet']; "
+            "  'silhouette_scores.parquet']; "
             "missing = [f for f in required if not (parquet_dir / f).exists()]; "
             "[print(f'  OK: {f}') for f in required if (parquet_dir / f).exists()]; "
             "assert not missing, f'Missing Parquet files: {missing}'"
@@ -156,7 +155,6 @@ with DAG(
         >> validate_cluster_assignments
         >> run_ab_testing
         >> validate_ab_results
-        >> run_export_parquet
         >> validate_all_parquets
         >> trigger_marts
     )

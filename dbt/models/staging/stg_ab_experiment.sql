@@ -3,7 +3,7 @@
 -- Davao Jeepney Route Optimization — Silver Layer
 -- =============================================================================
 -- Grain      : One row per passenger per test week in the A/B experiment
--- Source     : staging.stg_ab_experiment (source table)
+-- Source     : raw.stg_ab_experiment (source table)
 -- Materialise: view
 -- Depends on : stg_passenger_survey (FK — passenger_id)
 -- Notes      : Only Cluster 3 (Underserved Riders) passengers are included.
@@ -32,6 +32,22 @@ select
     satisfaction_score,
     would_use_again,
     created_at,
-    updated_at
+
+    null::timestamptz                               as updated_at,
+
+    -- experiment_phase: derived from test_week — not a raw column.
+    case
+        when test_week <= 4 then 'ramp_up'
+        else 'main'
+    end                                             as experiment_phase,
+
+    -- is_treatment: derived from "group" — not a raw column.
+    ("group" = 'treatment')                         as is_treatment,
+
+    null::numeric                                   as p_value,
+    null::boolean                                   as is_significant,
+    null::numeric                                   as effect_size,
+    null::numeric                                   as confidence_interval_low,
+    null::numeric                                   as confidence_interval_high
 
 from {{ source('raw', 'stg_ab_experiment') }}

@@ -5,7 +5,8 @@ apache-airflow-providers-postgres
 # Same as pipeline — DAGs run these scripts
 boto3
 psycopg2-binary
-dbt-postgres
+dbt-core==1.11.11
+dbt-postgres==1.10.0
 scikit-learn
 scipy
 joblib

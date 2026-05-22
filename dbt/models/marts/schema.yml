@@ -1,18 +1,6 @@
 version: 2
 
-# =============================================================================
-# GOLD LAYER — MART MODELS
-# All mart tables are materialised as full-refresh tables.
-# Populated by dbt on each Airflow dag_05_marts_refresh run.
-# mart_commuter_clusters and mart_ab_test_results require science/ scripts
-# to have run first — they will be empty shells until clustering.py and
-# ab_testing.py complete.
-# =============================================================================
-
 models:
-  # ---------------------------------------------------------------------------
-  # mart_route_summary
-  # ---------------------------------------------------------------------------
   - name: mart_route_summary
     description: >
       Gold: daily route performance KPIs.
@@ -58,21 +46,16 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 0
-                max_value: 1.5
+              min_value: 0
+              max_value: 1.5
       - name: on_time_rate
         description: "on_time_trips / total_trips. LTFRB target >= 0.80."
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 0
-                max_value: 1.0
+              min_value: 0
+              max_value: 1.0
 
-  # ---------------------------------------------------------------------------
-  # mart_district_ridership
-  # ---------------------------------------------------------------------------
   - name: mart_district_ridership
     description: >
       Gold: daily ridership and service quality by district.
@@ -103,22 +86,17 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 0
-                max_value: 1.0
+              min_value: 0
+              max_value: 1.0
       - name: avg_satisfaction
         description: "From passenger survey. NULL for districts with no respondents."
         tests:
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 1
-                max_value: 5
+              min_value: 1
+              max_value: 5
               config:
                 where: "avg_satisfaction IS NOT NULL"
 
-  # ---------------------------------------------------------------------------
-  # mart_commuter_clusters
-  # ---------------------------------------------------------------------------
   - name: mart_commuter_clusters
     description: >
       Gold: 5,000 passengers with K-Means cluster assignments.
@@ -155,17 +133,13 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 1
-                max_value: 5
+              min_value: 1
+              max_value: 5
       - name: is_ab_test_eligible
         description: "TRUE only for cluster_id = 3 (Underserved Riders)."
         tests:
           - not_null
 
-  # ---------------------------------------------------------------------------
-  # mart_ab_test_results
-  # ---------------------------------------------------------------------------
   - name: mart_ab_test_results
     description: >
       Gold: A/B test results for Cluster 3 (Underserved Riders).
@@ -203,17 +177,15 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 1
-                max_value: 8
+              min_value: 1
+              max_value: 8
       - name: satisfaction_score
         description: "Post-trip satisfaction 1–5."
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 1
-                max_value: 5
+              min_value: 1
+              max_value: 5
       - name: p_value
         description: >
           Two-sample t-test p-value on satisfaction_score.
@@ -221,8 +193,7 @@ models:
           Significant if < 0.05.
         tests:
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 0
-                max_value: 1.0
+              min_value: 0
+              max_value: 1.0
               config:
                 where: "p_value IS NOT NULL"

@@ -15,13 +15,11 @@
 --   - cluster_id and cluster_label pass through as-is (NULL before clustering runs)
 -- =============================================================================
 
-{{
-  config(
-    materialized = 'table', 
+{{ config(
+    materialized = 'table',
     schema       = 'staging',
-    tags = ["intermediate", "ml_feature_store"]
-  )
-}}
+    tags         = ["intermediate", "ml_feature_store"]
+) }}
 
 with survey as (
 
@@ -57,7 +55,6 @@ encoded as (
         s.is_likely_underserved,
 
         -- ── Numeric encodings for clustering ──────────────────────────────
-        -- income_bracket → ordinal integer (used as clustering feature)
         case s.income_bracket
             when 'low'    then 1
             when 'middle' then 2
@@ -65,7 +62,6 @@ encoded as (
             else null
         end                                         as income_bracket_encoded,
 
-        -- destination_type → integer label (optional feature)
         case s.destination_type
             when 'work'     then 1
             when 'school'   then 2
@@ -75,7 +71,6 @@ encoded as (
             else null
         end                                         as destination_type_encoded,
 
-        -- trip_purpose → integer label (optional feature)
         case s.trip_purpose
             when 'daily_commute'  then 1
             when 'occasional'     then 2
@@ -83,13 +78,12 @@ encoded as (
             else null
         end                                         as trip_purpose_encoded,
 
-        -- prefers_aircon → integer (0/1) for ML
         case s.prefers_aircon
             when true  then 1
             when false then 0
         end                                         as prefers_aircon_int,
 
-        -- ── Route context (enrichment from routes dimension) ──────────────
+        -- ── Route context ─────────────────────────────────────────────────
         r.route_name                                as primary_route_name,
         r.district_covered                          as primary_route_district,
         r.base_fare_php                             as route_base_fare_php,
@@ -102,13 +96,10 @@ encoded as (
 )
 
 select
-    -- Identity
     passenger_id,
     survey_date,
     origin_barangay,
     origin_district,
-
-    -- Raw categorical features
     destination_type,
     trip_purpose,
     primary_route_used,
@@ -116,8 +107,6 @@ select
     prefers_aircon,
 
     -- ── Primary K-Means clustering features (6) ───────────────────────────
-    -- These are the exact columns that science/clustering.py uses after
-    -- reading this table. Column order matters for StandardScaler fit.
     trips_per_week,
     avg_fare_paid_php,
     transfers_required,

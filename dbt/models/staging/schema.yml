@@ -1,13 +1,5 @@
 version: 2
 
-# =============================================================================
-# STAGING LAYER — Silver
-# Source: PostgreSQL staging schema (loaded from MinIO Parquet by ingest_to_postgres.py)
-# Each model is a simple SELECT view over the already-typed staging table.
-# All type casting and null handling happened during ingestion.
-# Tests enforce PK uniqueness, FK integrity, and business-rule ranges.
-# =============================================================================
-
 sources:
   - name: raw
     database: jeepney_dw
@@ -20,29 +12,20 @@ sources:
     tables:
       - name: stg_routes
         description: "12 Davao jeepney routes. Static dimension. One row per route."
-
       - name: stg_operators
         description: "Jeepney franchise holders and cooperatives. Static dimension."
-
       - name: stg_stops
         description: "~180 stops anchored on real Davao City landmarks."
-
       - name: stg_vehicles
         description: "120 jeepney units (traditional + modernised PUV). Static dimension."
-
       - name: stg_trips
         description: "~500K trip runs over 1 year. Highest-volume fact table."
-
       - name: stg_passenger_survey
         description: "5,000 commuter survey records. cluster_id NULL until clustering.py runs."
-
       - name: stg_ab_experiment
         description: "A/B experiment records for Cluster 3 (Underserved Riders) only. ~8,000 rows."
 
 models:
-  # ---------------------------------------------------------------------------
-  # stg_routes
-  # ---------------------------------------------------------------------------
   - name: stg_routes
     description: >
       Silver: 12 Davao City jeepney routes. Grain: one row per route.
@@ -94,9 +77,6 @@ models:
         tests:
           - not_null
 
-  # ---------------------------------------------------------------------------
-  # stg_operators
-  # ---------------------------------------------------------------------------
   - name: stg_operators
     description: >
       Silver: jeepney franchise holders and cooperatives.
@@ -130,9 +110,6 @@ models:
         tests:
           - not_null
 
-  # ---------------------------------------------------------------------------
-  # stg_stops
-  # ---------------------------------------------------------------------------
   - name: stg_stops
     description: >
       Silver: ~180 stops on real Davao City landmarks.
@@ -189,9 +166,6 @@ models:
               to: ref('stg_routes')
               field: route_id
 
-  # ---------------------------------------------------------------------------
-  # stg_vehicles
-  # ---------------------------------------------------------------------------
   - name: stg_vehicles
     description: >
       Silver: 120 jeepney units (traditional + modernised PUV).
@@ -246,9 +220,6 @@ models:
         tests:
           - not_null
 
-  # ---------------------------------------------------------------------------
-  # stg_trips
-  # ---------------------------------------------------------------------------
   - name: stg_trips
     description: >
       Silver: ~500K trip runs over 1 year (2024-01-01 to 2024-12-31).
@@ -312,9 +283,8 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 0
-                max_value: 1.5
+              min_value: 0
+              max_value: 1.5
       - name: is_on_time
         description: "TRUE when delay_min <= 5."
         tests:
@@ -324,9 +294,6 @@ models:
         tests:
           - not_null
 
-  # ---------------------------------------------------------------------------
-  # stg_passenger_survey
-  # ---------------------------------------------------------------------------
   - name: stg_passenger_survey
     description: >
       Silver: 5,000 commuter survey records.
@@ -367,9 +334,8 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 1
-                max_value: 5
+              min_value: 1
+              max_value: 5
       - name: income_bracket
         description: "low | middle | high."
         tests:
@@ -381,9 +347,8 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 0
-                max_value: 3
+              min_value: 0
+              max_value: 3
       - name: cluster_id
         description: >
           NULL at load time. Values 0–4 written by science/clustering.py.
@@ -391,15 +356,11 @@ models:
           3=Underserved Riders, 4=Occasional Riders.
         tests:
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 0
-                max_value: 4
-                config:
-                  where: "cluster_id IS NOT NULL"
+              min_value: 0
+              max_value: 4
+              config:
+                where: "cluster_id IS NOT NULL"
 
-  # ---------------------------------------------------------------------------
-  # stg_ab_experiment
-  # ---------------------------------------------------------------------------
   - name: stg_ab_experiment
     description: >
       Silver: A/B experiment records — Cluster 3 (Underserved Riders) only.
@@ -426,6 +387,7 @@ models:
           - accepted_values:
               values: [3]
       - name: group
+        quote: true
         description: "control | treatment. Quoted — GROUP is a reserved word."
         tests:
           - not_null
@@ -442,17 +404,15 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 1
-                max_value: 8
+              min_value: 1
+              max_value: 8
       - name: satisfaction_score
         description: "Post-trip satisfaction 1–5."
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              arguments:
-                min_value: 1
-                max_value: 5
+              min_value: 1
+              max_value: 5
       - name: would_use_again
         description: "Boolean retention indicator."
         tests:

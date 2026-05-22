@@ -20,7 +20,7 @@ DEFAULT_ARGS = {
 }
 
 DBT_DIR = "/opt/airflow/dbt"
-DBT_CMD = f"cd {DBT_DIR} && dbt"
+DBT_CMD = f"cd {DBT_DIR} && dbt --no-partial-parse"
 PROFILES_ARG = f"--profiles-dir {DBT_DIR}"
 
 DBT_ENV = {
@@ -35,6 +35,8 @@ DBT_ENV = {
     "PATH": f"/home/airflow/.local/bin:{os.environ.get('PATH', '')}",
 }
 
+SCIENCE_DIR = "/opt/airflow/science"
+
 with DAG(
     dag_id="dag_05_marts_refresh",
     description="dbt mart models refresh (Gold layer) — final BI-ready tables",
@@ -47,22 +49,42 @@ with DAG(
 ) as dag:
 
     wait_for_science = BashOperator(
-        task_id="confirm_parquet_inputs_ready",
+        task_id="confirm_science_outputs_ready",
         bash_command=(
             "python -c \""
-            "from pathlib import Path; "
-            "required = ['/opt/airflow/science/parquet/mart_commuter_clusters.parquet',"
-            "  '/opt/airflow/science/parquet/mart_ab_test_results.parquet']; "
-            "missing = [f for f in required if not Path(f).exists()]; "
-            "assert not missing, f'Science outputs missing: {missing}'; "
-            "print('All science Parquet outputs confirmed ready.')"
+            "import psycopg2, os; "
+            "conn = psycopg2.connect("
+            "  host='postgres', dbname='jeepney_dw',"
+            "  user=os.environ['SVC_PIPELINE_USER'],"
+            "  password=os.environ['SVC_PIPELINE_PASSWORD']"
+            "); "
+            "cur = conn.cursor(); "
+            # Check cluster labels written by clustering.py
+            "cur.execute(\"SELECT COUNT(*) FROM raw.stg_passenger_survey WHERE cluster_id IS NOT NULL\"); "
+            "n = cur.fetchone()[0]; "
+            "print(f'Passengers with cluster labels: {n:,}'); "
+            "assert n > 0, 'clustering.py has not written labels yet — dag_04 may not have completed'; "
+            # Check ab_testing.py wrote results directly to marts
+            "cur.execute(\"SELECT COUNT(*) FROM marts.mart_ab_test_results WHERE p_value IS NOT NULL\"); "
+            "n2 = cur.fetchone()[0]; "
+            "print(f'AB test rows with p_value: {n2:,}'); "
+            "assert n2 > 0, 'ab_testing.py has not written results yet — dag_04 may not have completed'; "
+            "conn.close(); "
+            "print('Science outputs confirmed ready.')"
             "\""
         ),
+        env=DBT_ENV,
     )
 
     dbt_run_marts = BashOperator(
         task_id="dbt_run_marts",
         bash_command=f"{DBT_CMD} run --select marts {PROFILES_ARG}",
+        env=DBT_ENV,
+    )
+
+    run_export_mart_parquets = BashOperator(
+        task_id="run_export_mart_parquets",
+        bash_command=f"python {SCIENCE_DIR}/export_to_parquet.py --marts-only",
         env=DBT_ENV,
     )
 
@@ -156,6 +178,7 @@ with DAG(
     (
         wait_for_science
         >> dbt_run_marts
+        >> run_export_mart_parquets
         >> dbt_test_marts
         >> validate_mart_counts
         >> validate_cluster_mart

@@ -177,6 +177,9 @@ def remap_clusters(df: pd.DataFrame, raw_labels: np.ndarray) -> np.ndarray:
             key=lambda rk, sk=semantic_k: scores_lookup[rk][sk],
             default=None,
         )
+        if best_raw is not None:
+            assignment[best_raw] = semantic_k
+            taken.add(best_raw)
 
     # Any remaining unmapped clusters
     for raw_k, _ in prototype_scores:
