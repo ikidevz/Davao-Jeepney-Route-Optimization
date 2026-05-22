@@ -22,6 +22,7 @@ DEFAULT_ARGS = {
 DBT_DIR = "/opt/airflow/dbt"
 DBT_CMD = f"cd {DBT_DIR} && dbt"
 PROFILES_ARG = f"--profiles-dir {DBT_DIR}"
+SCIENCE_DIR = "/opt/airflow/science"
 
 DBT_ENV = {
     "DB_HOST":          "postgres",
@@ -153,6 +154,18 @@ with DAG(
             "conn.close()"
             "\""
         ),
+        env=DBT_ENV,
+    )
+
+    run_export_parquet = BashOperator(
+        task_id="run_export_to_parquet",
+        bash_command=f"python {SCIENCE_DIR}/export_to_parquet.py",
+        env=DBT_ENV,
+    )
+
+    run_export_parquet = BashOperator(
+        task_id="run_export_to_parquet",
+        bash_command="python /opt/airflow/science/export_to_parquet.py",
         env=DBT_ENV,
     )
 

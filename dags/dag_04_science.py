@@ -119,12 +119,6 @@ with DAG(
         ),
     )
 
-    run_export_parquet = BashOperator(
-        task_id="run_export_to_parquet",
-        bash_command=f"python {SCIENCE_DIR}/export_to_parquet.py",
-        env=SCIENCE_ENV,
-    )
-
     validate_all_parquets = BashOperator(
         task_id="validate_all_parquets",
         bash_command=(
@@ -155,7 +149,6 @@ with DAG(
         >> validate_cluster_assignments
         >> run_ab_testing
         >> validate_ab_results
-        >> run_export_parquet
         >> validate_all_parquets
         >> trigger_marts
     )
