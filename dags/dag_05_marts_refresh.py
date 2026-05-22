@@ -184,5 +184,6 @@ with DAG(
         >> validate_mart_counts
         >> validate_cluster_mart
         >> validate_ab_mart
+        >> run_export_parquet
         >> pipeline_complete
     )
