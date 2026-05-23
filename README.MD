@@ -389,6 +389,28 @@ All pages query Parquet via DuckDB — no live PostgreSQL connection required at
 
 ---
 
+## Streamlit App
+
+### Landing Page — Live KPIs & Route Performance
+
+![Home](assets/screenshot_01_home.png)
+
+### Cluster Explorer
+
+![Clusters](assets/screenshot_02_clusters.png)
+
+### A/B Test Results
+
+![A/B Test](assets/screenshot_03_ab_test.png)
+
+### Route Map
+
+![Map](assets/screenshot_04_map.png)
+
+### Route Trends
+
+![Trends](assets/screenshot_05_trends.png)
+
 ## Airflow connections
 
 Registered automatically by `config/setup_conn.py` on `airflow-apiserver` startup:
