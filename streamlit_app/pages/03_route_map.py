@@ -376,7 +376,7 @@ for r in ROUTES:
 
 if route_stats_rows:
     st.dataframe(pd.DataFrame(route_stats_rows),
-                 use_container_width=True, hide_index=True)
+                 width='content', hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Stop reference table
@@ -395,6 +395,6 @@ if filtered_stops:
         "routes":        "Routes Served",
     }).sort_values("Avg Daily Boardings", ascending=False)
 
-    st.dataframe(stop_df, use_container_width=True, hide_index=True)
+    st.dataframe(stop_df, width='content', hide_index=True)
 else:
     st.info("No stops match the current filter selection.")

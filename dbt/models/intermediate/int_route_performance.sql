@@ -6,9 +6,6 @@
 -- Depends on : stg_trips, stg_routes, stg_vehicles, stg_operators
 -- Materialise: ephemeral
 -- Used by    : mart_route_summary
--- Fix note   : total_fuel_cost_php pre-aggregates to vehicle×day grain first
---              (avg_fuel_cost_daily_php is a per-vehicle daily cost, NOT per trip).
---              Summing it across trip rows would multiply by trip count incorrectly.
 -- =============================================================================
 
 {{
@@ -109,7 +106,7 @@ route_daily as (
     select
         route_id,
         trip_date,
-        is_rainy_day,
+        bool_or(is_rainy_day)                                       as is_rainy_day,
 
         -- Trip volume
         count(trip_id)                                              as total_trips,
@@ -161,8 +158,7 @@ route_daily as (
     from trip_enriched
     group by
         route_id,
-        trip_date,
-        is_rainy_day
+        trip_date
 )
 
 -- ── Final: join route dimension + correct fuel cost ──────────────────────────

@@ -67,6 +67,10 @@ def load_district_ridership() -> pd.DataFrame:
     df = duckdb.query(f"SELECT * FROM read_parquet('{path}')").df()
     if "trip_date" in df.columns:
         df["trip_date"] = pd.to_datetime(df["trip_date"])
+    # mart_district_ridership outputs "total_boardings" — normalise to
+    # "total_passengers" so all chart code uses one consistent column name
+    if "total_boardings" in df.columns and "total_passengers" not in df.columns:
+        df = df.rename(columns={"total_boardings": "total_passengers"})
     return df
 
 
@@ -187,7 +191,7 @@ if not filtered_route.empty and "trip_date" in filtered_route.columns and "total
                 "total_passengers": "Passengers", "route_label": "Route"},
     )
     fig_trend.update_layout(height=420, legend_title="Route")
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_trend, width='content')
 
 # ---------------------------------------------------------------------------
 # Revenue trend (if available)
@@ -227,7 +231,7 @@ if not filtered_route.empty and "total_revenue_php" in filtered_route.columns:
         height=380,
         legend=dict(orientation="h"),
     )
-    st.plotly_chart(fig_rev, use_container_width=True)
+    st.plotly_chart(fig_rev, width='content')
 
 # ---------------------------------------------------------------------------
 # Heatmap: ridership by route x day-of-week
@@ -259,7 +263,7 @@ if not filtered_route.empty and "trip_date" in filtered_route.columns:
         text_auto=".0f",
     )
     fig_hm.update_layout(height=400, coloraxis_colorbar_title="Avg Pax")
-    st.plotly_chart(fig_hm, use_container_width=True)
+    st.plotly_chart(fig_hm, width='content')
 
 # ---------------------------------------------------------------------------
 # District ridership area chart
@@ -284,7 +288,7 @@ if not district_df.empty and "trip_date" in district_df.columns and "district" i
                     "total_passengers": "Passengers", "district": "District"},
         )
         fig_dist.update_layout(height=420, legend_title="District")
-        st.plotly_chart(fig_dist, use_container_width=True)
+        st.plotly_chart(fig_dist, width='content')
 
 # ---------------------------------------------------------------------------
 # Top / Bottom routes
@@ -309,7 +313,7 @@ if not filtered_route.empty and "total_passengers" in filtered_route.columns:
         st.markdown("**🏆 Top 3 Routes by Ridership**")
         st.dataframe(
             route_perf.head(3)[["Route", "Total Passengers"]],
-            use_container_width=True,
+            width='content',
             hide_index=True,
         )
 
@@ -318,7 +322,7 @@ if not filtered_route.empty and "total_passengers" in filtered_route.columns:
         st.dataframe(
             route_perf.tail(3)[["Route", "Total Passengers"]
                                ].sort_values("Total Passengers"),
-            use_container_width=True,
+            width='content',
             hide_index=True,
         )
 
@@ -328,7 +332,7 @@ if not filtered_route.empty and "total_passengers" in filtered_route.columns:
 with st.expander("🔍 Raw Route Summary Data"):
     if not filtered_route.empty:
         st.dataframe(filtered_route.head(500),
-                     use_container_width=True, hide_index=True)
+                     width='content', hide_index=True)
         csv_buf = io.BytesIO()
         filtered_route.to_csv(csv_buf, index=False)
         st.download_button(
@@ -343,7 +347,7 @@ with st.expander("🔍 Raw Route Summary Data"):
 with st.expander("🔍 Raw District Ridership Data"):
     if not district_df.empty:
         st.dataframe(district_df.head(500),
-                     use_container_width=True, hide_index=True)
+                     width='content', hide_index=True)
         csv_buf2 = io.BytesIO()
         district_df.to_csv(csv_buf2, index=False)
         st.download_button(

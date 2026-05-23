@@ -199,7 +199,7 @@ with dist_col1:
     )
     fig_pie.update_traces(textposition="inside", textinfo="percent+label")
     fig_pie.update_layout(showlegend=False, height=380)
-    st.plotly_chart(fig_pie, use_container_width=True)
+    st.plotly_chart(fig_pie, width='content')
 
 with dist_col2:
     fig_bar = px.bar(
@@ -212,7 +212,7 @@ with dist_col2:
         labels={"emoji_label": "Cluster", "count": "Passengers"},
     )
     fig_bar.update_layout(showlegend=False, height=380, xaxis_tickangle=-20)
-    st.plotly_chart(fig_bar, use_container_width=True)
+    st.plotly_chart(fig_bar, width='content')
 
 # ---------------------------------------------------------------------------
 # Feature heatmap
@@ -237,7 +237,7 @@ fig_heat = px.imshow(
     text_auto=".2f",
 )
 fig_heat.update_layout(height=320, coloraxis_colorbar_title="Δ from mean")
-st.plotly_chart(fig_heat, use_container_width=True)
+st.plotly_chart(fig_heat, width='content')
 
 # ---------------------------------------------------------------------------
 # Radar chart — cluster profiles
@@ -275,7 +275,7 @@ fig_radar.update_layout(
     height=420,
     title="Normalised Feature Radar by Cluster (higher = more of that feature)",
 )
-st.plotly_chart(fig_radar, use_container_width=True)
+st.plotly_chart(fig_radar, width='content')
 
 # ---------------------------------------------------------------------------
 # Scatter plot (2 feature axes)
@@ -316,7 +316,7 @@ else:
         opacity=0.65,
     )
     fig_scatter.update_layout(height=450, legend_title_text="Cluster")
-    st.plotly_chart(fig_scatter, use_container_width=True)
+    st.plotly_chart(fig_scatter, width='content')
 
 # ---------------------------------------------------------------------------
 # Income + Trip purpose breakdown
@@ -346,7 +346,7 @@ with demo_col1:
             color_discrete_sequence=px.colors.qualitative.Set2,
         )
         fig_income.update_layout(height=350, xaxis_tickangle=-20)
-        st.plotly_chart(fig_income, use_container_width=True)
+        st.plotly_chart(fig_income, width='content')
 
 with demo_col2:
     if "trip_purpose" in filtered.columns:
@@ -370,7 +370,7 @@ with demo_col2:
             color_discrete_sequence=px.colors.qualitative.Pastel,
         )
         fig_purpose.update_layout(height=350, xaxis_tickangle=-20)
-        st.plotly_chart(fig_purpose, use_container_width=True)
+        st.plotly_chart(fig_purpose, width='content')
 
 # ---------------------------------------------------------------------------
 # Compare two clusters side by side
@@ -409,7 +409,7 @@ if not cmp_a.empty and not cmp_b.empty:
             "Δ (B − A)": round(b_mean - a_mean, 2),
         })
     st.dataframe(pd.DataFrame(cmp_rows),
-                 use_container_width=True, hide_index=True)
+                 width='content', hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Cluster profile cards
@@ -467,7 +467,7 @@ for cluster_id in sorted(CLUSTER_META.keys()):
                 .rename(columns={"origin_district": "District", "count": "Passengers"})
             )
             st.markdown("**Top Origin Districts:**")
-            st.dataframe(top_districts, use_container_width=True,
+            st.dataframe(top_districts, width='content',
                          hide_index=True)
 
         with col_right:
@@ -496,7 +496,7 @@ with st.expander("📊 Model Diagnostics — Elbow & Silhouette Scores"):
                                 labels={"k": "Number of Clusters (K)", "wss": "WSS"})
             fig_elbow.add_vline(x=5, line_dash="dash", line_color="red",
                                 annotation_text="K=5 selected")
-            st.plotly_chart(fig_elbow, use_container_width=True)
+            st.plotly_chart(fig_elbow, width='content')
 
     if not silhouette_df.empty:
         with sil_col:
@@ -505,7 +505,7 @@ with st.expander("📊 Model Diagnostics — Elbow & Silhouette Scores"):
                               labels={"k": "K", "silhouette_score": "Silhouette Score"})
             fig_sil.add_vline(x=5, line_dash="dash", line_color="red",
                               annotation_text="K=5 selected")
-            st.plotly_chart(fig_sil, use_container_width=True)
+            st.plotly_chart(fig_sil, width='content')
 
     # Best K annotation
     if not silhouette_df.empty:

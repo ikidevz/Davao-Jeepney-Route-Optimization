@@ -183,7 +183,7 @@ for _, row in stats.iterrows():
         })
 
 stats_display_df = pd.DataFrame(display_stats)
-st.dataframe(stats_display_df, use_container_width=True, hide_index=True)
+st.dataframe(stats_display_df, width='content', hide_index=True)
 
 csv_stats = io.BytesIO()
 stats.to_csv(csv_stats, index=False)
@@ -249,7 +249,7 @@ fig_weekly.update_layout(
     title="Weekly Average Satisfaction Score (with 95% CI bands)",
     legend_title="Group",
 )
-st.plotly_chart(fig_weekly, use_container_width=True)
+st.plotly_chart(fig_weekly, width='content')
 
 # ---------------------------------------------------------------------------
 # Distribution comparisons
@@ -270,7 +270,7 @@ with dist_col1:
         opacity=0.75,
     )
     fig_sat.update_layout(height=350)
-    st.plotly_chart(fig_sat, use_container_width=True)
+    st.plotly_chart(fig_sat, width='content')
 
 with dist_col2:
     st.subheader("Travel Time Distribution")
@@ -286,7 +286,7 @@ with dist_col2:
         points="outliers",
     )
     fig_time.update_layout(height=350, showlegend=False)
-    st.plotly_chart(fig_time, use_container_width=True)
+    st.plotly_chart(fig_time, width='content')
 
 # Fare comparison (new)
 if "simulated_fare_php" in df.columns:
@@ -304,7 +304,7 @@ if "simulated_fare_php" in df.columns:
             title="Fare Distribution by Group",
         )
         fig_fare.update_layout(height=350, showlegend=False)
-        st.plotly_chart(fig_fare, use_container_width=True)
+        st.plotly_chart(fig_fare, width='content')
 
     with fare_col2:
         if "transfers_needed" in df.columns:
@@ -321,7 +321,7 @@ if "simulated_fare_php" in df.columns:
                 title="Transfers Needed by Group",
             )
             fig_xfer.update_layout(height=350)
-            st.plotly_chart(fig_xfer, use_container_width=True)
+            st.plotly_chart(fig_xfer, width='content')
 
 # ---------------------------------------------------------------------------
 # Confidence interval chart
@@ -368,7 +368,7 @@ if ci_rows:
         height=250,
         yaxis=dict(tickfont=dict(size=13)),
     )
-    st.plotly_chart(fig_ci, use_container_width=True)
+    st.plotly_chart(fig_ci, width='content')
 
 # ---------------------------------------------------------------------------
 # District breakdown: where did treatment help most?
@@ -399,7 +399,7 @@ if "origin_district" in df.columns or "cluster_label" in df.columns:
             )
             fig_lift.add_hline(y=0, line_dash="solid", line_color="gray")
             fig_lift.update_layout(height=380, coloraxis_showscale=False)
-            st.plotly_chart(fig_lift, use_container_width=True)
+            st.plotly_chart(fig_lift, width='content')
 
 # ---------------------------------------------------------------------------
 # Retention (would_use_again)
@@ -428,7 +428,7 @@ fig_ret = px.bar(
 )
 fig_ret.update_traces(texttemplate="%{y:.1f}%", textposition="outside")
 fig_ret.update_layout(height=350, showlegend=False, yaxis_range=[0, 110])
-st.plotly_chart(fig_ret, use_container_width=True)
+st.plotly_chart(fig_ret, width='content')
 
 # ---------------------------------------------------------------------------
 # Raw data explorer
@@ -447,7 +447,7 @@ with st.expander("🔍 Raw Experiment Data Explorer"):
         df["group"].isin(group_filter)
     ]
     st.dataframe(raw_filtered.head(500),
-                 use_container_width=True, hide_index=True)
+                 width='content', hide_index=True)
     st.caption(f"Showing first 500 of {len(raw_filtered):,} rows.")
 
 # ---------------------------------------------------------------------------

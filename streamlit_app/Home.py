@@ -43,17 +43,20 @@ st.set_page_config(
 # Paths
 # ---------------------------------------------------------------------------
 PARQUET_DIR = Path(os.getenv("PARQUET_DIR", "/app/parquet"))
-MANIFEST    = PARQUET_DIR / "manifest.json"
+MANIFEST = PARQUET_DIR / "manifest.json"
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
 def last_refreshed() -> str:
     if MANIFEST.exists():
         try:
             with open(MANIFEST) as f:
                 data = json.load(f)
-            ts = datetime.fromisoformat(data["exported_at"].replace("Z", "+00:00"))
+            ts = datetime.fromisoformat(
+                data["exported_at"].replace("Z", "+00:00"))
             return ts.strftime("%d %b %Y %H:%M UTC")
         except Exception:
             pass
@@ -142,7 +145,8 @@ with st.sidebar:
 # Landing page content
 # ---------------------------------------------------------------------------
 st.title("🚌 Davao City Jeepney Route Optimization")
-st.subheader("Data Science Dashboard — Commuter Segmentation & Route Experiment")
+st.subheader(
+    "Data Science Dashboard — Commuter Segmentation & Route Experiment")
 
 st.markdown(
     """
@@ -218,18 +222,18 @@ st.markdown("---")
 # ---------------------------------------------------------------------------
 # Live KPI strip (from mart data)
 # ---------------------------------------------------------------------------
-clusters_df   = load_clusters()
-route_df      = load_route_summary()
-district_df   = load_district_ridership()
+clusters_df = load_clusters()
+route_df = load_route_summary()
+district_df = load_district_ridership()
 
 if not clusters_df.empty:
     st.markdown("### 📊 Live Data Snapshot")
     k1, k2, k3, k4, k5 = st.columns(5)
 
-    total_pax   = len(clusters_df)
-    avg_sat     = clusters_df["satisfaction_score"].mean()
-    avg_fare    = clusters_df["avg_fare_paid_php"].mean()
-    avg_wait    = clusters_df["wait_time_min"].mean()
+    total_pax = len(clusters_df)
+    avg_sat = clusters_df["satisfaction_score"].mean()
+    avg_fare = clusters_df["avg_fare_paid_php"].mean()
+    avg_wait = clusters_df["wait_time_min"].mean()
     underserved = (clusters_df["cluster_id"] == 3).sum()
 
     k1.metric("Total Passengers", f"{total_pax:,}")
@@ -263,12 +267,14 @@ if not route_df.empty:
             x="route_id",
             y="total_passengers",
             title="Total Boardings by Route",
-            labels={"route_id": "Route", "total_passengers": "Total Passengers"},
+            labels={"route_id": "Route",
+                    "total_passengers": "Total Passengers"},
             color="total_passengers",
             color_continuous_scale="Blues",
         )
-        fig_route.update_layout(height=350, showlegend=False, coloraxis_showscale=False)
-        st.plotly_chart(fig_route, use_container_width=True)
+        fig_route.update_layout(
+            height=350, showlegend=False, coloraxis_showscale=False)
+        st.plotly_chart(fig_route, width='content')
 
     with rc2:
         # Daily trend (top 5 routes)
@@ -287,10 +293,11 @@ if not route_df.empty:
                 y="total_passengers",
                 color="route_id",
                 title="Daily Ridership Trend (Top 5 Routes)",
-                labels={"trip_date": "Date", "total_passengers": "Passengers", "route_id": "Route"},
+                labels={"trip_date": "Date",
+                        "total_passengers": "Passengers", "route_id": "Route"},
             )
             fig_trend.update_layout(height=350)
-            st.plotly_chart(fig_trend, use_container_width=True)
+            st.plotly_chart(fig_trend, width='content')
 
     st.markdown("---")
 
@@ -316,7 +323,7 @@ if not district_df.empty and "district" in district_df.columns:
         color_continuous_scale="Teal",
     )
     fig_dist.update_layout(height=400, coloraxis_showscale=False)
-    st.plotly_chart(fig_dist, use_container_width=True)
+    st.plotly_chart(fig_dist, width='content')
     st.markdown("---")
 
 # ---------------------------------------------------------------------------
@@ -357,7 +364,7 @@ for fname, desc in files_to_check.items():
         "Rows": f"{row_count:,}" if row_count is not None else "—",
     })
 
-st.dataframe(pd.DataFrame(status_rows), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(status_rows), width='content', hide_index=True)
 
 # ---------------------------------------------------------------------------
 # About the project

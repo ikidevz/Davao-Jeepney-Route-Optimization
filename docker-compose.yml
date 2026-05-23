@@ -493,7 +493,7 @@ services:
     volumes:
       - ./streamlit_app:/app
       - ./science/parquet:/app/parquet
-    command: streamlit run /app/app.py --server.port=8501 --server.address=0.0.0.0
+    command: streamlit run /app/Home.py --server.port=8501 --server.address=0.0.0.0
     restart: unless-stopped
     networks:
       - jeepney_route

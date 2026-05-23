@@ -117,7 +117,10 @@ EXPORTS: list[dict] = [
         "query":    """
             SELECT *
             FROM marts.mart_route_summary
-            WHERE trip_date >= CURRENT_DATE - INTERVAL '30 days'
+            WHERE trip_date >= (
+                SELECT MAX(trip_date) - INTERVAL '30 days'
+                FROM marts.mart_route_summary
+            )
             ORDER BY trip_date DESC, route_id
         """,
     },
@@ -127,7 +130,10 @@ EXPORTS: list[dict] = [
         "query":    """
             SELECT *
             FROM marts.mart_district_ridership
-            WHERE trip_date >= CURRENT_DATE - INTERVAL '30 days'
+            WHERE trip_date >= (
+                SELECT MAX(trip_date) - INTERVAL '30 days'
+                FROM marts.mart_district_ridership
+            )
             ORDER BY trip_date DESC, district
         """,
     },
