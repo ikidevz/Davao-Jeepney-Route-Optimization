@@ -214,68 +214,66 @@ with dist_col2:
     fig_bar.update_layout(showlegend=False, height=380, xaxis_tickangle=-20)
     st.plotly_chart(fig_bar, width='content')
 
-# ---------------------------------------------------------------------------
-# Feature heatmap
-# ---------------------------------------------------------------------------
-st.subheader("Cluster Feature Profiles (Avg vs Overall)")
 
-feature_cols = list(FEATURE_DISPLAY.keys())
-agg = filtered.groupby("cluster_id")[feature_cols].mean()
-overall = filtered[feature_cols].mean()
+cluster_col1, cluster_col2 = st.columns(2)
+with cluster_col1:
+    st.subheader("Cluster Feature Profiles (Avg vs Overall)")
 
-norm = ((agg - overall) / overall.replace(0, np.nan)).fillna(0)
-norm.columns = list(FEATURE_DISPLAY.values())
-norm.index = [
-    f"{CLUSTER_META[c]['emoji']} {CLUSTER_META[c]['label']}" for c in norm.index]
+    feature_cols = list(FEATURE_DISPLAY.keys())
+    agg = filtered.groupby("cluster_id")[feature_cols].mean()
+    overall = filtered[feature_cols].mean()
 
-fig_heat = px.imshow(
-    norm,
-    color_continuous_scale="RdBu_r",
-    color_continuous_midpoint=0,
-    title="Feature Deviation from Overall Mean (red = above avg, blue = below avg)",
-    aspect="auto",
-    text_auto=".2f",
-)
-fig_heat.update_layout(height=320, coloraxis_colorbar_title="Δ from mean")
-st.plotly_chart(fig_heat, width='content')
+    norm = ((agg - overall) / overall.replace(0, np.nan)).fillna(0)
+    norm.columns = list(FEATURE_DISPLAY.values())
+    norm.index = [
+        f"{CLUSTER_META[c]['emoji']} {CLUSTER_META[c]['label']}" for c in norm.index]
 
-# ---------------------------------------------------------------------------
-# Radar chart — cluster profiles
-# ---------------------------------------------------------------------------
-st.subheader("Cluster Radar Profiles")
+    fig_heat = px.imshow(
+        norm,
+        color_continuous_scale="RdBu_r",
+        color_continuous_midpoint=0,
+        title="Feature Deviation from Overall Mean (red = above avg, blue = below avg)",
+        aspect="auto",
+        text_auto=".2f",
+    )
+    fig_heat.update_layout(height=320, coloraxis_colorbar_title="Δ from mean")
+    st.plotly_chart(fig_heat, width='content')
 
-radar_agg = filtered.groupby("cluster_id")[feature_cols].mean()
-# Normalize each feature to [0, 1] for radar
-radar_norm = (radar_agg - radar_agg.min()) / \
-    (radar_agg.max() - radar_agg.min()).replace(0, 1)
-radar_labels = list(FEATURE_DISPLAY.values())
+with cluster_col2:
+    st.subheader("Cluster Radar Profiles")
 
-fig_radar = go.Figure()
-for cluster_id in sorted(CLUSTER_META.keys()):
-    if cluster_id not in selected_clusters:
-        continue
-    if cluster_id not in radar_norm.index:
-        continue
-    vals = radar_norm.loc[cluster_id].tolist()
-    vals += vals[:1]  # close the polygon
-    meta = CLUSTER_META[cluster_id]
-    fig_radar.add_trace(go.Scatterpolar(
-        r=vals,
-        theta=radar_labels + radar_labels[:1],
-        name=f"{meta['emoji']} {meta['label']}",
-        line=dict(color=meta["color"], width=2),
-        fill="toself",
-        fillcolor=meta["color"],
-        opacity=0.15,
-    ))
+    radar_agg = filtered.groupby("cluster_id")[feature_cols].mean()
+    # Normalize each feature to [0, 1] for radar
+    radar_norm = (radar_agg - radar_agg.min()) / \
+        (radar_agg.max() - radar_agg.min()).replace(0, 1)
+    radar_labels = list(FEATURE_DISPLAY.values())
 
-fig_radar.update_layout(
-    polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-    showlegend=True,
-    height=420,
-    title="Normalised Feature Radar by Cluster (higher = more of that feature)",
-)
-st.plotly_chart(fig_radar, width='content')
+    fig_radar = go.Figure()
+    for cluster_id in sorted(CLUSTER_META.keys()):
+        if cluster_id not in selected_clusters:
+            continue
+        if cluster_id not in radar_norm.index:
+            continue
+        vals = radar_norm.loc[cluster_id].tolist()
+        vals += vals[:1]  # close the polygon
+        meta = CLUSTER_META[cluster_id]
+        fig_radar.add_trace(go.Scatterpolar(
+            r=vals,
+            theta=radar_labels + radar_labels[:1],
+            name=f"{meta['emoji']} {meta['label']}",
+            line=dict(color=meta["color"], width=2),
+            fill="toself",
+            fillcolor=meta["color"],
+            opacity=0.15,
+        ))
+
+    fig_radar.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+        showlegend=True,
+        height=420,
+        title="Normalised Feature Radar by Cluster (higher = more of that feature)",
+    )
+    st.plotly_chart(fig_radar, width='content')
 
 # ---------------------------------------------------------------------------
 # Scatter plot (2 feature axes)
@@ -316,7 +314,7 @@ else:
         opacity=0.65,
     )
     fig_scatter.update_layout(height=450, legend_title_text="Cluster")
-    st.plotly_chart(fig_scatter, width='content')
+    st.plotly_chart(fig_scatter, width='stretch')
 
 # ---------------------------------------------------------------------------
 # Income + Trip purpose breakdown
@@ -409,7 +407,7 @@ if not cmp_a.empty and not cmp_b.empty:
             "Δ (B − A)": round(b_mean - a_mean, 2),
         })
     st.dataframe(pd.DataFrame(cmp_rows),
-                 width='content', hide_index=True)
+                 width='stretch', hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Cluster profile cards
@@ -429,7 +427,7 @@ for cluster_id in sorted(CLUSTER_META.keys()):
     with st.expander(
         f"{meta['emoji']} Cluster {cluster_id} — {meta['label']}  "
         f"({len(cluster_df):,} passengers, {100*len(cluster_df)/len(filtered):.1f}%)",
-        expanded=(cluster_id == 3),
+        expanded=True,
     ):
         c1, c2, c3 = st.columns(3)
         c1.metric("Avg Satisfaction",

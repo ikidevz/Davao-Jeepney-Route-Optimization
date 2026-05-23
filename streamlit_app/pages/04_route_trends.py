@@ -164,131 +164,140 @@ if not filtered_route.empty:
 
     st.markdown("---")
 
-# ---------------------------------------------------------------------------
-# Daily ridership trend
-# ---------------------------------------------------------------------------
-if not filtered_route.empty and "trip_date" in filtered_route.columns and "total_passengers" in filtered_route.columns:
-    st.subheader("Daily Ridership Trend by Route")
+trend_col1a, trend_col1b = st.columns(2)
+trend_col2a, trend_col2b = st.columns(2)
 
-    trend = filtered_route.sort_values(["route_id", "trip_date"]).copy()
-    trend["route_label"] = trend["route_id"].map(
-        lambda r: f"{r} — {ROUTE_NAMES.get(r, r)}")
+with trend_col1a:
+    # ---------------------------------------------------------------------------
+    # Daily ridership trend
+    # ---------------------------------------------------------------------------
+    if not filtered_route.empty and "trip_date" in filtered_route.columns and "total_passengers" in filtered_route.columns:
+        st.subheader("Daily Ridership Trend by Route")
 
-    if smooth > 1:
-        trend["total_passengers"] = (
-            trend.groupby("route_id")["total_passengers"]
-            .transform(lambda x: x.rolling(smooth, min_periods=1).mean())
-        )
+        trend = filtered_route.sort_values(["route_id", "trip_date"]).copy()
+        trend["route_label"] = trend["route_id"].map(
+            lambda r: f"{r} — {ROUTE_NAMES.get(r, r)}")
 
-    fig_trend = px.line(
-        trend,
-        x="trip_date",
-        y="total_passengers",
-        color="route_label",
-        title=f"Daily Passengers by Route" +
-        (f" ({smooth}-day rolling avg)" if smooth > 1 else ""),
-        labels={"trip_date": "Date",
-                "total_passengers": "Passengers", "route_label": "Route"},
-    )
-    fig_trend.update_layout(height=420, legend_title="Route")
-    st.plotly_chart(fig_trend, width='content')
+        if smooth > 1:
+            trend["total_passengers"] = (
+                trend.groupby("route_id")["total_passengers"]
+                .transform(lambda x: x.rolling(smooth, min_periods=1).mean())
+            )
 
-# ---------------------------------------------------------------------------
-# Revenue trend (if available)
-# ---------------------------------------------------------------------------
-if not filtered_route.empty and "total_revenue_php" in filtered_route.columns:
-    st.subheader("Daily Revenue Trend (₱)")
-
-    rev_trend = (
-        filtered_route.groupby("trip_date")["total_revenue_php"]
-        .sum()
-        .reset_index()
-        .sort_values("trip_date")
-    )
-    if smooth > 1:
-        rev_trend["total_revenue_php"] = rev_trend["total_revenue_php"].rolling(
-            smooth, min_periods=1).mean()
-
-    fig_rev = go.Figure()
-    fig_rev.add_trace(go.Bar(
-        x=rev_trend["trip_date"],
-        y=rev_trend["total_revenue_php"],
-        name="Daily Revenue",
-        marker_color="#3B82F6",
-        opacity=0.6,
-    ))
-    fig_rev.add_trace(go.Scatter(
-        x=rev_trend["trip_date"],
-        y=rev_trend["total_revenue_php"].rolling(7, min_periods=1).mean(),
-        name="7-day avg",
-        line=dict(color="#EF4444", width=2),
-        mode="lines",
-    ))
-    fig_rev.update_layout(
-        title="Total Daily Revenue (₱) — All Selected Routes",
-        xaxis_title="Date",
-        yaxis_title="Revenue (₱)",
-        height=380,
-        legend=dict(orientation="h"),
-    )
-    st.plotly_chart(fig_rev, width='content')
-
-# ---------------------------------------------------------------------------
-# Heatmap: ridership by route x day-of-week
-# ---------------------------------------------------------------------------
-if not filtered_route.empty and "trip_date" in filtered_route.columns:
-    st.subheader("Ridership Heatmap — Route × Day of Week")
-
-    hm = filtered_route.copy()
-    hm["day_of_week"] = hm["trip_date"].dt.day_name()
-    day_order = ["Monday", "Tuesday", "Wednesday",
-                 "Thursday", "Friday", "Saturday", "Sunday"]
-
-    hm_agg = (
-        hm.groupby(["route_id", "day_of_week"])["total_passengers"]
-        .mean()
-        .reset_index()
-    )
-    hm_pivot = hm_agg.pivot(
-        index="route_id", columns="day_of_week", values="total_passengers")
-    hm_pivot = hm_pivot.reindex(
-        columns=[d for d in day_order if d in hm_pivot.columns])
-    hm_pivot.index = [f"{r} — {ROUTE_NAMES.get(r, r)}" for r in hm_pivot.index]
-
-    fig_hm = px.imshow(
-        hm_pivot,
-        color_continuous_scale="Blues",
-        title="Avg Daily Passengers by Route × Day of Week",
-        aspect="auto",
-        text_auto=".0f",
-    )
-    fig_hm.update_layout(height=400, coloraxis_colorbar_title="Avg Pax")
-    st.plotly_chart(fig_hm, width='content')
-
-# ---------------------------------------------------------------------------
-# District ridership area chart
-# ---------------------------------------------------------------------------
-if not district_df.empty and "trip_date" in district_df.columns and "district" in district_df.columns:
-    st.subheader("District Ridership Over Time")
-
-    dist_filtered = district_df.copy()
-    if start_date and end_date:
-        dist_filtered = dist_filtered[
-            dist_filtered["trip_date"].dt.date.between(start_date, end_date)
-        ]
-
-    if "total_passengers" in dist_filtered.columns:
-        fig_dist = px.area(
-            dist_filtered.sort_values("trip_date"),
+        fig_trend = px.line(
+            trend,
             x="trip_date",
             y="total_passengers",
-            color="district",
-            title="Daily Ridership by District",
+            color="route_label",
+            title=f"Daily Passengers by Route" +
+            (f" ({smooth}-day rolling avg)" if smooth > 1 else ""),
             labels={"trip_date": "Date",
-                    "total_passengers": "Passengers", "district": "District"},
+                    "total_passengers": "Passengers", "route_label": "Route"},
         )
-        fig_dist.update_layout(height=420, legend_title="District")
-        st.plotly_chart(fig_dist, width='content')
+        fig_trend.update_layout(height=420, legend_title="Route")
+        st.plotly_chart(fig_trend, width='content')
+
+with trend_col1b:
+    # ---------------------------------------------------------------------------
+    # Revenue trend (if available)
+    # ---------------------------------------------------------------------------
+    if not filtered_route.empty and "total_revenue_php" in filtered_route.columns:
+        st.subheader("Daily Revenue Trend (₱)")
+
+        rev_trend = (
+            filtered_route.groupby("trip_date")["total_revenue_php"]
+            .sum()
+            .reset_index()
+            .sort_values("trip_date")
+        )
+        if smooth > 1:
+            rev_trend["total_revenue_php"] = rev_trend["total_revenue_php"].rolling(
+                smooth, min_periods=1).mean()
+
+        fig_rev = go.Figure()
+        fig_rev.add_trace(go.Bar(
+            x=rev_trend["trip_date"],
+            y=rev_trend["total_revenue_php"],
+            name="Daily Revenue",
+            marker_color="#3B82F6",
+            opacity=0.6,
+        ))
+        fig_rev.add_trace(go.Scatter(
+            x=rev_trend["trip_date"],
+            y=rev_trend["total_revenue_php"].rolling(7, min_periods=1).mean(),
+            name="7-day avg",
+            line=dict(color="#EF4444", width=2),
+            mode="lines",
+        ))
+        fig_rev.update_layout(
+            title="Total Daily Revenue (₱) — All Selected Routes",
+            xaxis_title="Date",
+            yaxis_title="Revenue (₱)",
+            height=380,
+            legend=dict(orientation="h"),
+        )
+        st.plotly_chart(fig_rev, width='content')
+
+with trend_col2a:
+    # ---------------------------------------------------------------------------
+    # Heatmap: ridership by route x day-of-week
+    # ---------------------------------------------------------------------------
+    if not filtered_route.empty and "trip_date" in filtered_route.columns:
+        st.subheader("Ridership Heatmap — Route × Day of Week")
+
+        hm = filtered_route.copy()
+        hm["day_of_week"] = hm["trip_date"].dt.day_name()
+        day_order = ["Monday", "Tuesday", "Wednesday",
+                     "Thursday", "Friday", "Saturday", "Sunday"]
+
+        hm_agg = (
+            hm.groupby(["route_id", "day_of_week"])["total_passengers"]
+            .mean()
+            .reset_index()
+        )
+        hm_pivot = hm_agg.pivot(
+            index="route_id", columns="day_of_week", values="total_passengers")
+        hm_pivot = hm_pivot.reindex(
+            columns=[d for d in day_order if d in hm_pivot.columns])
+        hm_pivot.index = [
+            f"{r} — {ROUTE_NAMES.get(r, r)}" for r in hm_pivot.index]
+
+        fig_hm = px.imshow(
+            hm_pivot,
+            color_continuous_scale="Blues",
+            title="Avg Daily Passengers by Route × Day of Week",
+            aspect="auto",
+            text_auto=".0f",
+        )
+        fig_hm.update_layout(height=400, coloraxis_colorbar_title="Avg Pax")
+        st.plotly_chart(fig_hm, width='content')
+
+with trend_col2b:
+    # ---------------------------------------------------------------------------
+    # District ridership area chart
+    # ---------------------------------------------------------------------------
+    if not district_df.empty and "trip_date" in district_df.columns and "district" in district_df.columns:
+        st.subheader("District Ridership Over Time")
+
+        dist_filtered = district_df.copy()
+        if start_date and end_date:
+            dist_filtered = dist_filtered[
+                dist_filtered["trip_date"].dt.date.between(
+                    start_date, end_date)
+            ]
+
+        if "total_passengers" in dist_filtered.columns:
+            fig_dist = px.area(
+                dist_filtered.sort_values("trip_date"),
+                x="trip_date",
+                y="total_passengers",
+                color="district",
+                title="Daily Ridership by District",
+                labels={"trip_date": "Date",
+                        "total_passengers": "Passengers", "district": "District"},
+            )
+            fig_dist.update_layout(height=420, legend_title="District")
+            st.plotly_chart(fig_dist, width='content')
 
 # ---------------------------------------------------------------------------
 # Top / Bottom routes
@@ -310,19 +319,19 @@ if not filtered_route.empty and "total_passengers" in filtered_route.columns:
         "{:,.0f}".format)
 
     with top_col:
-        st.markdown("**🏆 Top 3 Routes by Ridership**")
+        st.markdown("**🏆 Top 5 Routes by Ridership**")
         st.dataframe(
-            route_perf.head(3)[["Route", "Total Passengers"]],
-            width='content',
+            route_perf.head(5)[["Route", "Total Passengers"]],
+            width='stretch',
             hide_index=True,
         )
 
     with bot_col:
-        st.markdown("**📉 Bottom 3 Routes by Ridership**")
+        st.markdown("**📉 Bottom 5 Routes by Ridership**")
         st.dataframe(
-            route_perf.tail(3)[["Route", "Total Passengers"]
+            route_perf.tail(5)[["Route", "Total Passengers"]
                                ].sort_values("Total Passengers"),
-            width='content',
+            width='stretch',
             hide_index=True,
         )
 

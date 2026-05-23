@@ -10,9 +10,9 @@ A full data engineering and data science project analyzing commuter patterns acr
 
 - **Ingests** 1,100,000+ synthetic jeepney trip records and 5,000 passenger surveys through a FastAPI Bronze layer into MinIO (Parquet)
 - **Transforms** raw data through a three-layer dbt pipeline (staging → intermediate → marts) in PostgreSQL
-- **Clusters** commuters into 5 segments using K-Means (Student, Market Worker, CBD Worker, Underserved, Occasional)
-- **Runs an A/B experiment** simulating a direct Matina → SM Lanang express route for the worst-served cluster
-- **Surfaces insights** through Apache Superset dashboards and a Streamlit data science app
+- **Clusters** commuters into 5 segments using K-Means with Elbow + Silhouette diagnostics and a stable semantic remapping step (Student, Market Worker, CBD Worker, Underserved, Occasional)
+- **Runs an A/B experiment** simulating a direct Matina → SM Lanang express route for the worst-served cluster, validated with Welch's t-test, chi-square, Cohen's d, and 95% confidence intervals
+- **Surfaces insights** through Apache Superset dashboards and a 4-page Streamlit data science app
 
 ---
 
@@ -26,7 +26,7 @@ A full data engineering and data science project analyzing commuter patterns acr
 | Transformation            | dbt-core 1.7 + dbt-postgres            |
 | Orchestration             | Apache Airflow 3.2.1 (CeleryExecutor)  |
 | BI dashboards             | Apache Superset 3.0                    |
-| DS app                    | Streamlit                              |
+| DS app                    | Streamlit (4 pages)                    |
 | ML                        | scikit-learn (K-Means, DBSCAN) + scipy |
 | Query engine              | DuckDB                                 |
 | Task broker               | Redis 7.2                              |
@@ -67,7 +67,19 @@ davao-jeepney-optimization/
 ├── ingestion/                    # MinIO Parquet → PostgreSQL loader
 ├── dbt/                          # Transformations: staging → intermediate → marts
 ├── science/                      # Clustering + A/B testing + Parquet export
-├── streamlit_app/                # Data science app (3 pages)
+│   ├── feature_engineering.py    # StandardScaler + feature matrix
+│   ├── clustering.py             # K-Means K=5, Elbow/Silhouette sweep, DBSCAN validation
+│   ├── ab_testing.py             # Welch's t-test, chi-square, Cohen's d, 95% CI
+│   ├── export_to_parquet.py      # Exports mart tables + manifest.json
+│   ├── parquet/                  # DuckDB-queryable Parquet outputs
+│   └── models/                   # scaler.joblib (persisted StandardScaler)
+├── streamlit_app/                # Data science app (4 pages)
+│   ├── app.py                    # Landing page: KPIs, route chart, pipeline status
+│   └── pages/
+│       ├── 01_cluster_explorer.py  # K-Means segments: radar, heatmap, scatter, profiles
+│       ├── 02_ab_test_results.py   # A/B stats: CI bands, effect size, lift, verdict
+│       ├── 03_route_map.py         # Folium route map: stops, corridors, district overlays
+│       └── 04_route_trends.py      # Ridership + revenue trends, DOW heatmap (new)
 ├── dags/                         # 5 Airflow DAGs (daily at 06:00 PHT)
 ├── superset/dashboards/          # 3 pre-built Superset dashboard exports
 └── pipeline/                     # Dockerfile for one-off pipeline runs
@@ -171,7 +183,7 @@ The remaining DAGs chain automatically via `TriggerDagRunOperator`:
 ```
 dag_01_producers      → generates synthetic data, POSTs to FastAPI, Parquet lands in MinIO
   └── dag_02_ingestion      → moves Parquet from MinIO into PostgreSQL staging tables
-        └── dag_03_dbt_transform  → runs staging + intermediate dbt models
+        └── dag_03_dbt_transform  → runs staging + intermediate dbt models + dbt test
               └── dag_04_science        → clustering, A/B testing, exports Parquet
                     └── dag_05_marts_refresh  → builds final Gold mart tables
 ```
@@ -196,7 +208,8 @@ docker-compose run --rm pipeline python /app/ingestion/ingest_to_postgres.py
 # Run dbt staging + intermediate models
 docker-compose run --rm pipeline bash -c "cd /app/dbt && dbt run --select staging intermediate"
 
-# Run science pipeline (clustering + A/B testing + Parquet export)
+# Run science pipeline (in order)
+docker-compose run --rm pipeline python /app/science/feature_engineering.py
 docker-compose run --rm pipeline python /app/science/clustering.py
 docker-compose run --rm pipeline python /app/science/ab_testing.py
 docker-compose run --rm pipeline python /app/science/export_to_parquet.py
@@ -223,28 +236,128 @@ docker-compose run --rm pipeline bash -c "cd /app/dbt && dbt run --select marts"
 
 ---
 
-## Commuter clusters
+## Commuter clustering (K-Means)
 
-| Cluster | Label              | Characteristics                                        |
-| ------- | ------------------ | ------------------------------------------------------ |
-| 0       | Student Commuters  | High frequency, low fare, school destinations          |
-| 1       | Market Workers     | AM peak, Toril/Calinan → Bankerohan                    |
-| 2       | CBD Workers        | Daily, higher willingness to pay, Poblacion/Lanang     |
-| 3       | Underserved Riders | 2+ transfers, long wait, low satisfaction — A/B target |
-| 4       | Occasional Riders  | Low frequency, mall/hospital trips                     |
+The clustering pipeline in `science/clustering.py` segments 5,000 passenger survey records into 5 behavioral groups. Here is exactly what it does and why.
+
+### Feature matrix
+
+Seven features are pulled from `intermediate.int_passenger_features` after dbt has run, then standardized with `StandardScaler` (zero mean, unit variance) before any model runs. Standardization prevents high-magnitude features like `travel_time_min` from dominating features that live on a 1–5 scale.
+
+| Feature                  | What it captures                                            |
+| ------------------------ | ----------------------------------------------------------- |
+| `trips_per_week`         | Commute frequency — separates daily from occasional riders  |
+| `avg_fare_paid_php`      | Willingness to pay — proxy for income bracket and route use |
+| `transfers_required`     | Route complexity — key discriminator for underserved riders |
+| `wait_time_min`          | Service quality — long waits signal supply gaps             |
+| `travel_time_min`        | Total journey time — captures distance and route efficiency |
+| `satisfaction_score`     | Revealed preference — 1–5 self-reported satisfaction        |
+| `income_bracket_encoded` | Ordinal income (low=0, mid=1, high=2) — socioeconomic lens  |
+
+The fitted scaler is persisted to `science/models/scaler.joblib` so it can be reused for inference without refitting.
+
+### Choosing K
+
+K is not hardcoded arbitrarily. The pipeline sweeps **K = 2 through 10** and computes two diagnostics:
+
+**Elbow method (Within-Cluster Sum of Squares):** WSS is recorded for each K with `n_init=10`. The elbow — where marginal gain from adding another cluster diminishes sharply — is a heuristic indicator of a good K. Results are saved to `science/parquet/elbow_scores.parquet`.
+
+**Silhouette score:** For each K the mean silhouette coefficient is computed over a 2,000-sample draw. A silhouette coefficient near +1 means a point is well-matched to its own cluster and poorly matched to neighbours; near 0 means borderline; below 0 suggests misclassification. The K with the highest mean silhouette is auto-selected as the algorithmic recommendation. Results are saved to `science/parquet/silhouette_scores.parquet`.
+
+Both diagnostics are plotted in the Streamlit Cluster Explorer under **Model Diagnostics**. For this dataset both methods converge on **K = 5**, which matches the five commuter archetypes engineered into the synthetic data.
+
+### Stable semantic labels (remapping step)
+
+K-Means assigns cluster IDs (0–4) non-deterministically. Running the model twice with different seeds can swap which raw ID corresponds to which archetype — breaking any downstream code that hardcodes "Cluster 3 = Underserved Riders."
+
+After the initial fit, a **greedy prototype-scoring remapper** assigns stable semantic IDs. Each raw cluster is scored against five prototype profiles based on its centroid position in the feature space, then assigned to semantic IDs in priority order (Underserved → CBD → Student → Occasional → Market). Labels stay consistent across pipeline runs regardless of random seed.
+
+### DBSCAN validation
+
+After K-Means finalizes, DBSCAN runs with `eps=1.2` and `min_samples=15` on the same scaled matrix as a sanity check — not for final labels. If DBSCAN finds more than ~5% noise points (label = −1), it signals that the feature space has significant outlier structure that K-Means is absorbing rather than isolating. For this dataset, noise is consistently below 3%, confirming the K-Means partitions are structurally sound.
+
+### The five clusters
+
+| Cluster | Label                  | Characteristics                                                                                                                  |
+| ------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 0       | **Student Commuters**  | High frequency (10+ trips/week), low fare (~₱14.50), school destinations, Talomo/Buhangin/Agdao origin districts                 |
+| 1       | **Market Workers**     | AM peak heavy, Toril/Calinan/Tugbok → Bankerohan corridor, low income bracket                                                    |
+| 2       | **CBD Workers**        | Daily commuters, higher willingness to pay (~₱19), Poblacion/Lanang destinations, prefer aircon                                  |
+| 3       | **Underserved Riders** | 2+ transfers required, 30-min average wait, 55-min average travel time, satisfaction score 1–2, low income — **A/B test target** |
+| 4       | **Occasional Riders**  | 1–2 trips/week, mall/hospital trips, mixed income, Talomo/Buhangin/Toril/Agdao spread                                            |
+
+Cluster labels are written back to `stg_passenger_survey` via batched `UPDATE` (500-row pages using `psycopg2.extras.execute_batch`), then surfaced in `mart_commuter_clusters` for Superset and Streamlit to slice by segment.
 
 ---
 
 ## A/B experiment
 
-**Hypothesis:** A direct Matina → SM Lanang express route reduces travel time and improves satisfaction for Underserved Riders (Cluster 3).
+The A/B experiment in `science/ab_testing.py` tests a single hypothesis against Cluster 3 passengers using three statistical methods.
 
-| Group         | Route             | Avg travel time | Transfers |
-| ------------- | ----------------- | --------------- | --------- |
-| Control (A)   | Current multi-hop | ~55 min         | 2         |
-| Treatment (B) | Direct express    | ~35 min         | 0         |
+### Hypothesis and design
 
-Statistical tests: two-sample t-test (satisfaction score, travel time) + chi-square (would_use_again) at α = 0.05. Results are written to `marts.mart_ab_test_results` and visualized in Superset Dashboard 3 and the Streamlit A/B test page.
+**Hypothesis:** A direct Matina → SM Lanang express route (Route R12) — zero transfers, ~35 minutes — produces a statistically significant improvement in satisfaction and a measurable reduction in travel time for Underserved Riders (Cluster 3).
+
+| Parameter        | Value                                                     |
+| ---------------- | --------------------------------------------------------- |
+| Population       | 1,000 Cluster 3 passengers from `stg_passenger_survey`    |
+| Assignment       | 50/50 random split — 500 control, 500 treatment           |
+| Duration         | 8 simulated weeks, one observation per passenger per week |
+| Primary metric   | `satisfaction_score` (1–5) — Welch's two-sample t-test    |
+| Secondary metric | `would_use_again` (boolean) — chi-square test             |
+| Tertiary metric  | `simulated_travel_time_min` — Welch's two-sample t-test   |
+| α level          | 0.05, target power 0.80                                   |
+
+If either group falls outside 40–60% of total enrollment, the pipeline logs a warning before running any tests.
+
+### What each group experiences
+
+| Group         | Route              | Avg travel time | Transfers | Avg satisfaction               |
+| ------------- | ------------------ | --------------- | --------- | ------------------------------ |
+| Control (A)   | Existing multi-hop | ~55 min         | 1–2       | ~2.2 (week 1) → declining      |
+| Treatment (B) | Direct express     | ~35 min         | 0         | ~3.8 (week 1) → rising to ~4.4 |
+
+### Statistical methods
+
+**Welch's two-sample t-test** — used for `satisfaction_score` and `simulated_travel_time_min`. Unlike the standard Student's t-test, Welch's variant does not assume equal variance between groups, making it more robust when control and treatment scores have different spreads — the typical case in real-world survey data. Implemented via `scipy.stats.ttest_ind(equal_var=False)`. Output: t-statistic, two-tailed p-value, significance flag (`p_value < 0.05`).
+
+**Chi-square test of independence** — used for `would_use_again` (yes/no). Tests whether the distribution of yes/no responses is independent of group assignment. Computes a 2×2 contingency table, chi-square statistic, degrees of freedom, and p-value. Control passengers answer "yes" at ~45%; treatment passengers at ~82% — a 37-point lift that produces a strongly significant result.
+
+**Cohen's d (effect size)** — computed alongside each t-test as `(treatment_mean − control_mean) / pooled_std`. Statistical significance alone does not confirm practical importance; a dataset large enough will make any difference significant. Cohen's d quantifies the magnitude:
+
+| Range             | Interpretation |
+| ----------------- | -------------- |
+| \|d\| < 0.2       | Negligible     |
+| 0.2 ≤ \|d\| < 0.5 | Small          |
+| 0.5 ≤ \|d\| < 0.8 | Medium         |
+| \|d\| ≥ 0.8       | Large          |
+
+A medium-to-large Cohen's d alongside p < 0.05 is the combination that justifies a route adoption recommendation.
+
+**95% confidence intervals** — computed for each continuous metric as `mean_diff ± 1.96 × SE`, where `SE = sqrt(var_ctrl/n_ctrl + var_trt/n_trt)`. A CI that excludes zero confirms significance at α = 0.05. Both bounds are persisted and displayed on the Streamlit CI chart.
+
+### Possible outcomes and what each means
+
+The experiment can resolve in four ways:
+
+**Significant improvement, medium-to-large effect** — p < 0.05 and Cohen's d ≥ 0.5. The recommendation is clear: adopt the route. Next step is a real-world pilot with load-factor monitoring and a 6-month ridership review.
+
+**Significant but small effect** — p < 0.05 but Cohen's d below 0.3. The improvement is real but may not justify operating cost. Extend the trial, run qualitative interviews to understand why satisfaction lift is muted, and model cost-per-satisfaction-point against alternative interventions (frequency increase, feeder route redesign).
+
+**Not significant, trend visible** — p > 0.05 but weekly satisfaction in the treatment group is rising. The experiment may be underpowered. Extend to 12–16 weeks, increase sample size, and retest. Do not adopt the route based on a trend alone.
+
+**No improvement** — p > 0.05, Cohen's d near zero, no visible trend. This is a genuine null result. Investigate why: access issues at the Matina origin stop, affordability barriers to the express fare, or a mismatch between the route corridor and Cluster 3's actual destination patterns. A different intervention is needed.
+
+### Where results live
+
+All statistical outputs are written to two locations:
+
+- `marts.mart_ab_test_results` — weekly metrics + test results, read by Superset Dashboard 3 (`ab_test_summary.json`)
+- `science/parquet/ab_test_statistics.parquet` — DuckDB-queryable, read by the Streamlit A/B page
+
+Columns include: `p_value`, `is_significant`, `t_statistic`, `effect_size`, `mean_diff`, `ci_low_95`, `ci_high_95`, `control_mean`, `treatment_mean`.
+
+The Streamlit A/B page renders: weekly trend with shaded 95% CI bands, statistical results table, confidence interval forest plot, travel time box plot, fare distribution violin chart, satisfaction lift by origin, and a plain-language verdict.
 
 ---
 
@@ -256,7 +369,23 @@ Statistical tests: two-sample t-test (satisfaction score, travel time) + chi-squ
 | Pre-Gold | `intermediate` | int_daily_ridership, int_route_performance, int_passenger_features                                                | dag_03   |
 | Gold     | `marts`        | mart_route_summary, mart_district_ridership, mart_commuter_clusters, mart_ab_test_results                         | dag_05   |
 
-> `mart_commuter_clusters` and `mart_ab_test_results` are empty shells until `dag_04_science` writes cluster labels and p-values back to the staging tables. dbt in `dag_05` then reads those columns to build the final Gold marts.
+> `mart_commuter_clusters` and `mart_ab_test_results` are empty shells until `dag_04_science` writes cluster labels and p-values back to the staging tables. dbt in `dag_05` then reads those enriched columns to build the final Gold marts.
+
+Every model has a `schema.yml` with column descriptions and dbt tests (`not_null`, `unique`, `accepted_values`, `relationships`). Data quality is enforced at transformation time, not at query time.
+
+---
+
+## Streamlit app pages
+
+| Page                    | File                     | What it shows                                                                                                     |
+| ----------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Landing                 | `app.py`                 | Live KPIs, route performance chart, district ridership, pipeline status table                                     |
+| 🔵 Cluster Explorer     | `01_cluster_explorer.py` | Radar chart, feature heatmap, scatter plot, income/purpose breakdown, profile cards, elbow/silhouette diagnostics |
+| 🧪 A/B Test Results     | `02_ab_test_results.py`  | Weekly satisfaction with CI bands, statistical results table, CI forest plot, lift by origin, verdict             |
+| 🗺️ Route Map            | `03_route_map.py`        | Folium map with route corridors, stop markers, district satisfaction circles, fullscreen + minimap plugins        |
+| 📈 Route Trends _(new)_ | `04_route_trends.py`     | Daily ridership trend, revenue chart, DOW heatmap, district area chart, top/bottom routes                         |
+
+All pages query Parquet via DuckDB — no live PostgreSQL connection required at dashboard runtime.
 
 ---
 
@@ -313,4 +442,14 @@ docker exec -it jeepney_postgres psql -U jeepney_user_admin -d jeepney_dw \
   -c "\du svc_pipeline"
 ```
 
+**Streamlit shows no data** — confirm `dag_04_science` has completed and Parquet files exist:
+
+```bash
+docker exec jeepney_streamlit ls /app/parquet/
+```
+
+Expected files: `passenger_features.parquet`, `cluster_assignments.parquet`, `elbow_scores.parquet`, `silhouette_scores.parquet`, `ab_test_statistics.parquet`, `mart_commuter_clusters.parquet`, `mart_ab_test_results.parquet`, `mart_route_summary_recent.parquet`, `mart_district_ridership_recent.parquet`, `manifest.json`.
+
 **Superset can't connect to PostgreSQL** — confirm the connection uses `svc_bi` (not superuser) and the host is `postgres` (Docker service name), not `localhost`.
+
+**Cluster labels not appearing in Superset** — `dag_04_science` must complete before `dag_05_marts_refresh`. If you triggered mart refresh manually before science finished, re-trigger `dag_05_marts_refresh` after confirming `cluster_id` is populated in `stg_passenger_survey`.

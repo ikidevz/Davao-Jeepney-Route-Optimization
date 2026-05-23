@@ -304,26 +304,27 @@ if not route_df.empty:
 # ---------------------------------------------------------------------------
 # District ridership (if available)
 # ---------------------------------------------------------------------------
+
 if not district_df.empty and "district" in district_df.columns:
     st.markdown("### 🏘️ District Ridership Breakdown")
     dist_agg = (
-        district_df.groupby("district")["total_passengers"]
+        district_df.groupby("district")["total_boardings"]
         .sum()
         .reset_index()
-        .sort_values("total_passengers", ascending=True)
+        .sort_values("total_boardings", ascending=True)
     )
     fig_dist = px.bar(
         dist_agg,
-        x="total_passengers",
+        x="total_boardings",
         y="district",
         orientation="h",
         title="Total Passengers by District (Last 30 Days)",
-        labels={"total_passengers": "Total Passengers", "district": "District"},
-        color="total_passengers",
+        labels={"total_boardings": "Total Passengers", "district": "District"},
+        color="total_boardings",
         color_continuous_scale="Teal",
     )
     fig_dist.update_layout(height=400, coloraxis_showscale=False)
-    st.plotly_chart(fig_dist, width='content')
+    st.plotly_chart(fig_dist, width='stretch')
     st.markdown("---")
 
 # ---------------------------------------------------------------------------
@@ -364,7 +365,7 @@ for fname, desc in files_to_check.items():
         "Rows": f"{row_count:,}" if row_count is not None else "—",
     })
 
-st.dataframe(pd.DataFrame(status_rows), width='content', hide_index=True)
+st.dataframe(pd.DataFrame(status_rows), width='stretch', hide_index=True)
 
 # ---------------------------------------------------------------------------
 # About the project

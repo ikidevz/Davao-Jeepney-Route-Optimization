@@ -183,7 +183,7 @@ for _, row in stats.iterrows():
         })
 
 stats_display_df = pd.DataFrame(display_stats)
-st.dataframe(stats_display_df, width='content', hide_index=True)
+st.dataframe(stats_display_df, width='stretch', hide_index=True)
 
 csv_stats = io.BytesIO()
 stats.to_csv(csv_stats, index=False)
@@ -249,7 +249,7 @@ fig_weekly.update_layout(
     title="Weekly Average Satisfaction Score (with 95% CI bands)",
     legend_title="Group",
 )
-st.plotly_chart(fig_weekly, width='content')
+st.plotly_chart(fig_weekly, width='stretch')
 
 # ---------------------------------------------------------------------------
 # Distribution comparisons
@@ -368,7 +368,7 @@ if ci_rows:
         height=250,
         yaxis=dict(tickfont=dict(size=13)),
     )
-    st.plotly_chart(fig_ci, width='content')
+    st.plotly_chart(fig_ci, width='stretch')
 
 # ---------------------------------------------------------------------------
 # District breakdown: where did treatment help most?
@@ -399,7 +399,7 @@ if "origin_district" in df.columns or "cluster_label" in df.columns:
             )
             fig_lift.add_hline(y=0, line_dash="solid", line_color="gray")
             fig_lift.update_layout(height=380, coloraxis_showscale=False)
-            st.plotly_chart(fig_lift, width='content')
+            st.plotly_chart(fig_lift, width='stretch')
 
 # ---------------------------------------------------------------------------
 # Retention (would_use_again)
@@ -428,7 +428,7 @@ fig_ret = px.bar(
 )
 fig_ret.update_traces(texttemplate="%{y:.1f}%", textposition="outside")
 fig_ret.update_layout(height=350, showlegend=False, yaxis_range=[0, 110])
-st.plotly_chart(fig_ret, width='content')
+st.plotly_chart(fig_ret, width='stretch')
 
 # ---------------------------------------------------------------------------
 # Raw data explorer
@@ -447,7 +447,7 @@ with st.expander("🔍 Raw Experiment Data Explorer"):
         df["group"].isin(group_filter)
     ]
     st.dataframe(raw_filtered.head(500),
-                 width='content', hide_index=True)
+                 width='stretch', hide_index=True)
     st.caption(f"Showing first 500 of {len(raw_filtered):,} rows.")
 
 # ---------------------------------------------------------------------------

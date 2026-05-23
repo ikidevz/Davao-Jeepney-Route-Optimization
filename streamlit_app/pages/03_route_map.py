@@ -26,76 +26,84 @@ DAVAO_CENTER = [7.0709, 125.6087]
 
 ROUTES = [
     {"route_id": "R01", "name": "Bankerohan–Toril",       "color": "#3B82F6",
-     "coords": [[7.0709, 125.6087], [7.0500, 125.5900], [7.0200, 125.5700], [6.9900, 125.5500]],
+     "coords": [[7.0686, 125.6009], [7.0500, 125.5800], [7.0182, 125.4959]],
      "est_km": 22},
     {"route_id": "R02", "name": "Ecoland–SM City",         "color": "#10B981",
-     "coords": [[7.0600, 125.5950], [7.0709, 125.6087], [7.0850, 125.6200], [7.0920, 125.6120]],
+     "coords": [[7.0553, 125.6010], [7.0591, 125.5900], [7.0506, 125.5883]],
      "est_km": 8},
     {"route_id": "R03", "name": "Agdao Loop",              "color": "#F59E0B",
-     "coords": [[7.0709, 125.6087], [7.0900, 125.6300], [7.1000, 125.6200], [7.0800, 125.6050]],
+     "coords": [[7.0686, 125.6009], [7.0810, 125.6222], [7.0820, 125.6233],
+                [7.0810, 125.6100], [7.0686, 125.6009]],
      "est_km": 10},
-    {"route_id": "R04", "name": "Calinan–Bankerohan",     "color": "#EF4444",
-     "coords": [[7.1800, 125.4700], [7.1500, 125.5200], [7.1200, 125.5700], [7.0709, 125.6087]],
+    {"route_id": "R04", "name": "Calinan–Bankerohan",      "color": "#EF4444",
+     "coords": [[7.1912, 125.4548], [7.1500, 125.5000], [7.1200, 125.5500],
+                [7.0686, 125.6009]],
      "est_km": 38},
-    {"route_id": "R05", "name": "Buhangin–Lanang",        "color": "#8B5CF6",
-     "coords": [[7.1100, 125.6300], [7.1000, 125.6200], [7.0800, 125.6150], [7.0700, 125.6180]],
+    {"route_id": "R05", "name": "Buhangin–Lanang",         "color": "#8B5CF6",
+     "coords": [[7.1091, 125.6156], [7.1027, 125.6369], [7.0990, 125.6315]],
      "est_km": 9},
-    {"route_id": "R06", "name": "Matina–Ulas",            "color": "#EC4899",
-     "coords": [[7.0500, 125.5950], [7.0600, 125.6000], [7.0650, 125.6050], [7.0700, 125.6200]],
+    {"route_id": "R06", "name": "Matina–Ulas",             "color": "#EC4899",
+     "coords": [[7.0597, 125.5740], [7.0620, 125.5900], [7.0686, 125.6009],
+                [7.0820, 125.6233]],
      "est_km": 7},
-    {"route_id": "R07", "name": "Talomo–Davao Proper",    "color": "#06B6D4",
-     "coords": [[7.0100, 125.5600], [7.0300, 125.5800], [7.0500, 125.5950], [7.0709, 125.6087]],
+    {"route_id": "R07", "name": "Talomo–Davao Proper",     "color": "#06B6D4",
+     "coords": [[7.0082, 125.5679], [7.0300, 125.5750], [7.0553, 125.6010],
+                [7.0686, 125.6009]],
      "est_km": 15},
-    {"route_id": "R08", "name": "Mintal–Bankerohan",      "color": "#84CC16",
-     "coords": [[7.1400, 125.5100], [7.1100, 125.5400], [7.0900, 125.5700], [7.0709, 125.6087]],
+    {"route_id": "R08", "name": "Mintal–Bankerohan",       "color": "#84CC16",
+     "coords": [[7.0928, 125.5025], [7.1000, 125.5300], [7.0800, 125.5700],
+                [7.0686, 125.6009]],
      "est_km": 28},
-    {"route_id": "R09", "name": "Panacan–Bankerohan",     "color": "#F97316",
-     "coords": [[7.1300, 125.6500], [7.1100, 125.6300], [7.0900, 125.6150], [7.0709, 125.6087]],
+    {"route_id": "R09", "name": "Panacan–Bankerohan",      "color": "#F97316",
+     "coords": [[7.1530, 125.6514], [7.1091, 125.6156], [7.0820, 125.6233],
+                [7.0686, 125.6009]],
      "est_km": 18},
-    {"route_id": "R10", "name": "Toril–Sta. Ana Wharf",  "color": "#64748B",
-     "coords": [[6.9900, 125.5500], [7.0100, 125.5600], [7.0400, 125.5850], [7.0550, 125.6050]],
+    {"route_id": "R10", "name": "Toril–Sta. Ana Wharf",   "color": "#64748B",
+     "coords": [[7.0182, 125.4959], [7.0300, 125.5200], [7.0500, 125.5700],
+                [7.0553, 125.6010]],
      "est_km": 20},
-    {"route_id": "R11", "name": "Sasa–Bajada",            "color": "#A78BFA",
-     "coords": [[7.1050, 125.6400], [7.0900, 125.6280], [7.0750, 125.6150], [7.0650, 125.6050]],
+    {"route_id": "R11", "name": "Sasa–Bajada",             "color": "#A78BFA",
+     "coords": [[7.1305, 125.6615], [7.1091, 125.6156], [7.0990, 125.6315],
+                [7.0872, 125.6120]],
      "est_km": 12},
     {"route_id": "R12", "name": "Matina–SM Lanang Express", "color": "#DC2626",
-     "coords": [[7.0500, 125.5950], [7.0600, 125.6050], [7.0750, 125.6100], [7.0800, 125.6150],
-                [7.0850, 125.6200], [7.0920, 125.6120]],
+     "coords": [[7.0553, 125.6010], [7.0620, 125.6050], [7.0711, 125.6134],
+                [7.0820, 125.6233], [7.0984, 125.6198], [7.0990, 125.6315]],
      "est_km": 11,
      "is_ab_route": True},
 ]
 
 STOPS = [
-    {"stop_id": "S001", "name": "Bankerohan Market Terminal", "lat": 7.0709, "lng": 125.6087,
-     "type": "terminal", "district": "Poblacion", "avg_boardings": 2800, "routes": "R01,R03,R04,R08"},
-    {"stop_id": "S002", "name": "Toril Terminal",             "lat": 6.9900, "lng": 125.5500,
-     "type": "terminal", "district": "Toril", "avg_boardings": 1200, "routes": "R01,R10"},
-    {"stop_id": "S003", "name": "SM City Davao",              "lat": 7.0920, "lng": 125.6120,
-     "type": "mall",     "district": "Buhangin", "avg_boardings": 3200, "routes": "R02,R05"},
-    {"stop_id": "S004", "name": "Ecoland Terminal",           "lat": 7.0600, "lng": 125.5950,
-     "type": "terminal", "district": "Talomo", "avg_boardings": 1800, "routes": "R02,R06,R07"},
-    {"stop_id": "S005", "name": "Agdao Public Market",        "lat": 7.0900, "lng": 125.6300,
-     "type": "market",   "district": "Agdao", "avg_boardings": 1500, "routes": "R03,R09"},
-    {"stop_id": "S006", "name": "Matina Crossing",            "lat": 7.0500, "lng": 125.5950,
-     "type": "residential", "district": "Talomo", "avg_boardings": 900, "routes": "R06,R12"},
-    {"stop_id": "S007", "name": "Lanang Business Park",       "lat": 7.0700, "lng": 125.6180,
-     "type": "mall",     "district": "Buhangin", "avg_boardings": 2100, "routes": "R05"},
-    {"stop_id": "S008", "name": "Davao Medical Center",       "lat": 7.0650, "lng": 125.6020,
+    {"stop_id": "S001", "name": "Bankerohan Market Terminal",  "lat": 7.0686, "lng": 125.6009,
+     "type": "terminal",    "district": "Poblacion", "avg_boardings": 2800, "routes": "R01,R03,R04,R08"},
+    {"stop_id": "S002", "name": "Toril Terminal",              "lat": 7.0182, "lng": 125.4959,
+     "type": "terminal",    "district": "Toril",     "avg_boardings": 1200, "routes": "R01,R10"},
+    {"stop_id": "S003", "name": "SM City Davao",               "lat": 7.0506, "lng": 125.5883,
+     "type": "mall",        "district": "Talomo",    "avg_boardings": 3200, "routes": "R02,R05"},
+    {"stop_id": "S004", "name": "Ecoland Terminal",            "lat": 7.0553, "lng": 125.6010,
+     "type": "terminal",    "district": "Talomo",    "avg_boardings": 1800, "routes": "R02,R06,R07"},
+    {"stop_id": "S005", "name": "Agdao Public Market",         "lat": 7.0820, "lng": 125.6233,
+     "type": "market",      "district": "Agdao",     "avg_boardings": 1500, "routes": "R03,R09"},
+    {"stop_id": "S006", "name": "Matina Crossing",             "lat": 7.0597, "lng": 125.5740,
+     "type": "residential", "district": "Talomo",    "avg_boardings": 900,  "routes": "R06,R12"},
+    {"stop_id": "S007", "name": "Lanang Business Park",        "lat": 7.1027, "lng": 125.6369,
+     "type": "mall",        "district": "Buhangin",  "avg_boardings": 2100, "routes": "R05"},
+    {"stop_id": "S008", "name": "Davao Medical Center",  "lat": 7.0984, "lng": 125.6198,
      "type": "hospital", "district": "Poblacion", "avg_boardings": 750, "routes": "R06,R07"},
-    {"stop_id": "S009", "name": "Ateneo de Davao University", "lat": 7.0720, "lng": 125.6120,
-     "type": "school",   "district": "Poblacion", "avg_boardings": 1100, "routes": "R03"},
-    {"stop_id": "S010", "name": "SM Lanang Premier",          "lat": 7.0850, "lng": 125.6200,
-     "type": "mall",     "district": "Lanang", "avg_boardings": 2900, "routes": "R05,R12"},
-    {"stop_id": "S011", "name": "Calinan Terminal",           "lat": 7.1800, "lng": 125.4700,
-     "type": "terminal", "district": "Calinan", "avg_boardings": 680, "routes": "R04"},
-    {"stop_id": "S012", "name": "Buhangin Crossing",          "lat": 7.1100, "lng": 125.6300,
-     "type": "residential", "district": "Buhangin", "avg_boardings": 820, "routes": "R05,R09"},
-    {"stop_id": "S013", "name": "Panacan Terminal",           "lat": 7.1300, "lng": 125.6500,
-     "type": "terminal", "district": "Panacan", "avg_boardings": 590, "routes": "R09"},
-    {"stop_id": "S014", "name": "Bajada Terminal",            "lat": 7.0750, "lng": 125.6150,
-     "type": "terminal", "district": "Poblacion", "avg_boardings": 1350, "routes": "R11"},
-    {"stop_id": "S015", "name": "Sasa Terminal",              "lat": 7.1050, "lng": 125.6400,
-     "type": "terminal", "district": "Sasa", "avg_boardings": 720, "routes": "R11"},
+    {"stop_id": "S009", "name": "Ateneo de Davao University",  "lat": 7.0711, "lng": 125.6134,
+     "type": "school",      "district": "Poblacion", "avg_boardings": 1100, "routes": "R03"},
+    {"stop_id": "S010", "name": "SM Lanang Premier",           "lat": 7.0990, "lng": 125.6315,
+     "type": "mall",        "district": "Buhangin",  "avg_boardings": 2900, "routes": "R05,R12"},
+    {"stop_id": "S011", "name": "Calinan Terminal",            "lat": 7.1912, "lng": 125.4548,
+     "type": "terminal",    "district": "Calinan",   "avg_boardings": 680,  "routes": "R04"},
+    {"stop_id": "S012", "name": "Buhangin Crossing",           "lat": 7.1091, "lng": 125.6156,
+     "type": "residential", "district": "Buhangin",  "avg_boardings": 820,  "routes": "R05,R09"},
+    {"stop_id": "S013", "name": "Panacan Terminal",            "lat": 7.1530, "lng": 125.6514,
+     "type": "terminal",    "district": "Panacan",   "avg_boardings": 590,  "routes": "R09"},
+    {"stop_id": "S014", "name": "Bajada Terminal",             "lat": 7.0872, "lng": 125.6120,
+     "type": "terminal",    "district": "Poblacion", "avg_boardings": 1350, "routes": "R11"},
+    {"stop_id": "S015", "name": "Sasa Terminal",               "lat": 7.1305, "lng": 125.6615,
+     "type": "terminal",    "district": "Sasa",      "avg_boardings": 720,  "routes": "R11"},
 ]
 
 STOP_TYPE_ICONS = {
@@ -112,17 +120,17 @@ STOP_TYPES = sorted(set(s["type"] for s in STOPS))
 ALL_ROUTES = {r["route_id"]: r["name"] for r in ROUTES}
 
 DISTRICT_CENTROIDS = {
-    "Poblacion":  [7.0709, 125.6087],
-    "Buhangin":   [7.1050, 125.6250],
-    "Agdao":      [7.0900, 125.6300],
-    "Talomo":     [7.0500, 125.5900],
-    "Toril":      [6.9900, 125.5500],
-    "Calinan":    [7.1800, 125.4700],
-    "Baguio":     [7.1300, 125.5500],
-    "Lanang":     [7.0850, 125.6200],
-    "Panacan":    [7.1300, 125.6500],
-    "Sasa":       [7.1050, 125.6400],
-    "Mintal":     [7.1400, 125.5100],
+    "Poblacion": [7.0646, 125.6079],
+    "Buhangin":  [7.1091, 125.6156],
+    "Agdao":     [7.0810, 125.6222],
+    "Talomo":    [7.0591, 125.5703],
+    "Toril":     [7.0186, 125.4975],
+    "Calinan":   [7.1896, 125.4524],
+    "Baguio":    [7.1722, 125.4036],
+    "Lanang":    [7.0990, 125.6315],
+    "Panacan":   [7.1530, 125.6514],
+    "Sasa":      [7.1305, 125.6615],
+    "Mintal":    [7.0928, 125.5025],
 }
 
 
@@ -352,11 +360,8 @@ if show_ab_corridor:
 # Render map
 # ---------------------------------------------------------------------------
 st_folium(m, width=None, height=620, returned_objects=[])
-
-# ---------------------------------------------------------------------------
-# Route statistics summary
-# ---------------------------------------------------------------------------
 st.markdown("---")
+route_col1, route_col2 = st.columns(2)
 st.subheader("Route Statistics Summary")
 
 route_stats_rows = []
@@ -376,11 +381,9 @@ for r in ROUTES:
 
 if route_stats_rows:
     st.dataframe(pd.DataFrame(route_stats_rows),
-                 width='content', hide_index=True)
+                 width='stretch', hide_index=True)
 
-# ---------------------------------------------------------------------------
-# Stop reference table
-# ---------------------------------------------------------------------------
+
 st.subheader("Stop Reference Table")
 
 if filtered_stops:
@@ -395,6 +398,6 @@ if filtered_stops:
         "routes":        "Routes Served",
     }).sort_values("Avg Daily Boardings", ascending=False)
 
-    st.dataframe(stop_df, width='content', hide_index=True)
+    st.dataframe(stop_df, width='stretch', hide_index=True)
 else:
     st.info("No stops match the current filter selection.")
